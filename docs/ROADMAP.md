@@ -31,7 +31,7 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 
 > Objectif : voir l'écran du téléphone dans une fenêtre.
 
-- [ ] (#4) Capture écran (SurfaceControl)
+- [~] (#4) Capture écran (SurfaceControl) — structure + logique de dimensionnement (test écrit) ; `DisplayInfo.primary()` à brancher par version d'Android, validation SDK/matériel requise
 - [ ] (#5) Encodage H.264 (MediaCodec)
 - [ ] (#6) Décodage FFmpeg
 - [ ] (#7) Affichage SDL
