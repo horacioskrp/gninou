@@ -61,4 +61,21 @@ impl Cli {
             }
         }
     }
+
+    /// Arguments transmis au serveur embarqué (format `clé=valeur`).
+    pub fn server_args(&self) -> Vec<String> {
+        let mut v = Vec::new();
+        if self.max_size > 0 {
+            v.push(format!("max_size={}", self.max_size));
+        }
+        v.push(format!("max_fps={}", self.max_fps));
+        v.push(format!("video_codec={}", self.video_codec));
+        if self.no_audio {
+            v.push("audio=false".to_string());
+        }
+        if self.no_video {
+            v.push("video=false".to_string());
+        }
+        v
+    }
 }

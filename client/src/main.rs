@@ -43,18 +43,25 @@ fn main() -> Result<()> {
         device.state
     );
 
-    if device::server_bin::is_placeholder() {
+    // (#2) Déploiement du serveur embarqué sur l'appareil.
+    let _server = if device::server_bin::is_placeholder() {
         log::warn!(
-            "serveur embarqué = placeholder vide (build sans SDK Android). \
-             Recompilez avec GNINOU_BUILD_SERVER=1 pour un binaire distribuable."
+            "serveur embarqué = placeholder vide (build sans SDK Android) : \
+             déploiement sauté. Recompilez avec GNINOU_BUILD_SERVER=1."
         );
-    }
+        None
+    } else {
+        let serial = Some(device.serial.as_str());
+        let child = device::server_bin::deploy(serial, &args.server_args())?;
+        log::info!("serveur déployé et lancé sur {}", device.serial);
+        Some(child)
+    };
 
     // TODO (suite du pipeline) :
-    //   #2/#3. device::server_bin::push()+start() + device::adb::open_tunnel()
+    //   #3.    device::adb::open_tunnel() -> sockets (video / audio / control)
     //   #4-7.  media::video + media::audio (décodage/lecture)
     //   #8-10. control (capture entrées -> protocol -> socket)
-    log::warn!("transport et média non implémentés — prochaines fonctionnalités");
+    log::warn!("tunnel et média non implémentés — prochaines fonctionnalités");
 
     Ok(())
 }
