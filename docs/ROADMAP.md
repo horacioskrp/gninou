@@ -48,7 +48,7 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 
 ## Phase 4 — Qualité & réglages
 
-- [ ] (#11) Codecs configurables (H.265 / AV1)
+- [~] (#11) Codecs configurables (H.265 / AV1) — validation client + négociation serveur (repli) testées ; requête MediaCodecList réelle à brancher
 - [ ] (#12) Résolution / FPS / bitrate
 - [ ] (#13) Rognage (crop) et rotation
 - **Test de phase** : comparatif qualité/latence selon réglages.

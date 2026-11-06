@@ -26,5 +26,20 @@ enum class VideoCodec(val id: String, val mime: String) {
             val bps = (pixels * fps * 0.2).toLong()
             return bps.coerceIn(2_000_000, 40_000_000).toInt()
         }
+
+        /**
+         * Négocie le codec à utiliser selon ceux réellement disponibles
+         * (ensemble de types MIME exposés par `MediaCodecList`).
+         *
+         * Règle : on garde le codec demandé s'il est dispo ; sinon on se replie
+         * sur H.264 s'il est dispo ; sinon sur le premier codec géré disponible.
+         * Logique **pure et testable**.
+         */
+        fun negotiate(requested: VideoCodec, availableMimes: Set<String>): VideoCodec {
+            if (requested.mime in availableMimes) return requested
+            if (H264.mime in availableMimes) return H264
+            return entries.firstOrNull { it.mime in availableMimes }
+                ?: throw IllegalStateException("aucun encodeur vidéo géré n'est disponible")
+        }
     }
 }
