@@ -33,10 +33,17 @@ fn main() -> Result<()> {
     let connection = args.connection();
     log::info!("mode de connexion : {connection:?}");
 
+    if device::server_bin::is_placeholder() {
+        log::warn!(
+            "serveur embarqué = placeholder vide (build sans SDK Android). \
+             Recompilez avec GNINOU_BUILD_SERVER=1 pour un binaire distribuable."
+        );
+    }
+
     // TODO (pipeline de bout en bout) :
     //   1. device::adb::ensure_available()
-    //   2. connection.establish()                 // USB / TCP-IP / Wi-Fi
-    //   3. device::adb::push_server() + lancement via app_process
+    //   2. connection.establish()                     // USB / TCP-IP / Wi-Fi
+    //   3. device::server_bin::push() + server_bin::start()  // serveur embarqué
     //   4. device::adb::open_tunnel() -> sockets (video / audio / control)
     //   5. media::video + media::audio (décodage/lecture)
     //   6. control (capture entrées -> protocol -> socket)

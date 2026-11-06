@@ -3,6 +3,9 @@
 **/*.rs.bk
 Cargo.lock.orig
 
+# Serveur embarqué : artefact de build (reconstruit par build.rs / scripts)
+/client/assets/gninou-server.jar
+
 # ---- Kotlin / Android / Gradle (server) ----
 /server/.gradle/
 /server/build/

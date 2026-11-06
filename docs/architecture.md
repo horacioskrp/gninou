@@ -51,6 +51,25 @@ Particularité : exécuté par `app_process`, pas packagé en APK. Livrable = `.
 | `media::audio` | décodage + lecture son |
 | `control` | capture clavier/souris → `ControlMessage` |
 
+## Empaquetage : du monorepo à l'app unique
+
+Bien que le dépôt ait deux composants, le livrable est **un seul exécutable desktop**.
+Le serveur est embarqué dans le client :
+
+| Étape | Outil | Résultat |
+|-------|-------|----------|
+| 1. Compiler le serveur | Gradle (`gradle jar`) | `server/build/libs/gninou-server-*.jar` |
+| 2. Copier dans les assets | `build.rs` / scripts | `client/assets/gninou-server.jar` |
+| 3. Compiler le client | Cargo (`include_bytes!`) | `gninou` (le jar est *dans* le binaire) |
+
+Les scripts `scripts/build.sh` / `build.ps1` enchaînent ces étapes. La variable
+`GNINOU_BUILD_SERVER=1` dit à `build.rs` de (re)compiler le serveur ; sinon un
+placeholder vide est utilisé pour que le client compile seul.
+
+Au **runtime**, `client/device/server_bin.rs` extrait le jar embarqué dans un fichier
+temporaire, le pousse (`adb push /data/local/tmp/`), puis l'exécute via `app_process`.
+Rien n'est installé durablement sur l'appareil.
+
 ## Protocole (à figer)
 
 Format de trame : en-tête (`MediaHeader` : pts, taille, keyframe) + charge utile pour vidéo/audio ; messages typés (`ControlMessage`) pour le contrôle. Point de départ : s'inspirer de scrcpy puis simplifier.

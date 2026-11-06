@@ -17,15 +17,18 @@ Les deux dialoguent via **ADB** (USB, TCP/IP ou Wi-Fi), sur trois canaux logique
 
 ```
 gninou/
-├── client/                         # CLIENT DESKTOP (Rust)
+├── client/                         # CLIENT DESKTOP (Rust) = l'app finale
 │   ├── Cargo.toml
+│   ├── build.rs                    # gradle -> jar -> assets/ (embarquement)
+│   ├── assets/                     # gninou-server.jar embarqué (build)
 │   └── src/
 │       ├── main.rs                 # orchestration
 │       ├── cli.rs                  # arguments
 │       ├── protocol/               # trames vidéo/audio/contrôle
 │       ├── device/
 │       │   ├── adb.rs              # ensure / push / tunnel
-│       │   └── connection.rs       # USB · TCP-IP · Wi-Fi
+│       │   ├── connection.rs       # USB · TCP-IP · Wi-Fi
+│       │   └── server_bin.rs       # extrait + push + lance le serveur embarqué
 │       ├── media/
 │       │   ├── video.rs            # décodage + affichage
 │       │   └── audio.rs            # lecture audio
@@ -42,8 +45,35 @@ gninou/
 │       ├── control/Controller.kt   # injection d'événements
 │       └── util/Log.kt
 │
+├── scripts/                        # build.sh / build.ps1 (gradle -> cargo)
 └── docs/architecture.md            # détail + feuille de route
 ```
+
+## Comment l'app finale fonctionne
+
+L'utilisateur n'installe **que le client** (un exécutable desktop). Le serveur Kotlin
+compilé (`gninou-server.jar`) est **embarqué dans le binaire** (`include_bytes!`).
+Au lancement, le client l'extrait, le pousse sur l'appareil via `adb push`, l'exécute
+via `app_process`, ouvre le tunnel, puis décode/affiche. À la fermeture, rien ne reste
+sur l'appareil — d'où le « sans app installée ».
+
+## Build complet (client + serveur embarqué)
+
+Nécessite le SDK Android (`android.jar` dans `server/gradle.properties`) :
+
+```bash
+scripts/build.sh --release          # Linux / macOS
+```
+```powershell
+.\scripts\build.ps1 -Release        # Windows
+```
+
+Le script compile le serveur (Gradle), copie le jar dans `client/assets/`,
+puis build le client avec `GNINOU_BUILD_SERVER=1` pour l'embarquer.
+
+> Sans SDK Android, `cargo build` fonctionne quand même : `build.rs` place un
+> placeholder vide à la place du jar (l'app démarre mais ne peut pas pousser de
+> serveur réel — utile pour développer le client seul).
 
 ## Architecture
 
