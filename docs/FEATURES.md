@@ -30,7 +30,7 @@ puis fusionnée dans `develop` (voir [GITFLOW.md](GITFLOW.md)).
 | 14 | Audio forwarding | client+serveur | Android 11+ | 5 | 🟨 | ✅ (codec/pipeline) |
 | 15 | Presse-papiers bidirectionnel | client+serveur | — | 5 | 🟨 | ✅ (protocole) |
 | 16 | Connexion TCP/IP | client | — | 6 | ✅ | ✅ (validation) |
-| 17 | Appairage sans fil (Wi-Fi) | client | Android 11+ | 6 | ⬜ | ⬜ |
+| 17 | Appairage sans fil (Wi-Fi) | client | Android 11+ | 6 | ✅ | ✅ (validation) |
 | 18 | Multi-appareils | client | — | 6 | ⬜ | ⬜ |
 | 19 | Enregistrement (mp4/mkv) | client | FFmpeg | 7 | ⬜ | ⬜ |
 | 20 | Affichage écran éteint | client+serveur | — | 7 | ⬜ | ⬜ |

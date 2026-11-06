@@ -62,8 +62,14 @@ fn main() -> Result<()> {
         log::info!("codec audio demandé : {}", audio_codec.as_str());
     }
 
-    // (#1/#16) Détection de l'appareil (après connexion TCP/IP éventuelle).
+    // (#1/#16/#17) Détection de l'appareil (après appairage/connexion réseau).
     device::adb::ensure_available()?;
+
+    // (#17) Appairage Wi-Fi (Android 11+) si demandé, avant la connexion.
+    if let Some((addr, code)) = args.pairing() {
+        device::connection::pair(addr, code)?;
+    }
+
     connection.establish()?;
     let target_serial = connection.serial();
     let device = device::adb::detect(target_serial.as_deref())?;

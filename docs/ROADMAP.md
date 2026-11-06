@@ -62,7 +62,7 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 ## Phase 6 — Sans fil & multi-appareils
 
 - [x] (#16) Connexion TCP/IP — `adb connect` + validation/normalisation `ip:port` testées ; connexion réseau à valider sur matériel
-- [ ] (#17) Appairage sans fil (Wi-Fi, Android 11+)
+- [x] (#17) Appairage sans fil (Wi-Fi, Android 11+) — `adb pair` + validation code 6 chiffres testée ; appairage réseau à valider sur matériel
 - [ ] (#18) Multi-appareils
 - **Test de phase** : miroir via Wi-Fi, deux appareils en parallèle.
 
