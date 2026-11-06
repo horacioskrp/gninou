@@ -24,8 +24,8 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 
 - [x] (#1) Détection d'appareil + wrapper adb — tests unitaires verts, e2e à valider sur matériel
 - [x] (#2) Push + lancement du serveur via `app_process` — logique testée (unit), e2e sur matériel à valider
-- [ ] (#3) Tunnel adb + ouverture des sockets (vidéo / audio / contrôle)
-- **Test de phase** : handshake client ↔ serveur sur un vrai appareil USB.
+- [x] (#3) Tunnel adb + ouverture des sockets (vidéo / audio / contrôle) — logique testée (unit)
+- **Test de phase** : handshake client ↔ serveur sur un vrai appareil USB — ⬜ à valider sur matériel (voir tests/e2e/03).
 
 ## Phase 2 — Miroir vidéo
 
