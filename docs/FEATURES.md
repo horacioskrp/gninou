@@ -20,7 +20,7 @@ puis fusionnée dans `develop` (voir [GITFLOW.md](GITFLOW.md)).
 | 4 | Capture écran (SurfaceControl) | serveur | Android 5.0+ | 2 | 🟨 | ⬜ (SDK) |
 | 5 | Encodage vidéo (MediaCodec H.264) | serveur | — | 2 | 🟨 | ⬜ (SDK) |
 | 6 | Décodage vidéo (FFmpeg) | client | FFmpeg | 2 | 🟨 | ✅ (framing) |
-| 7 | Affichage fenêtre (SDL) | client | SDL | 2 | ⬜ | ⬜ |
+| 7 | Affichage fenêtre (SDL) | client | SDL | 2 | 🟨 | ✅ (cadrage) |
 | 8 | Contrôle souris (clic, déplacement, molette) | client+serveur | — | 3 | ⬜ | ⬜ |
 | 9 | Contrôle clavier | client+serveur | — | 3 | ⬜ | ⬜ |
 | 10 | Injection d'événements (InputManager) | serveur | — | 3 | ⬜ | ⬜ |

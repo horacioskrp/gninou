@@ -16,6 +16,7 @@ path = "src/main.rs"
 # alors « stats-only »). Activer `ffmpeg` pour le décodage réel (FFmpeg requis).
 default = []
 ffmpeg = ["dep:ffmpeg-next"]
+display = ["dep:sdl3"]
 
 [dependencies]
 # CLI
@@ -28,9 +29,8 @@ anyhow = "1.0.95"
 
 # Décodage vidéo réel (optionnel) : nécessite FFmpeg installé pour compiler.
 ffmpeg-next = { version = "7.1.0", optional = true }
-
-# --- À activer pour l'affichage (#7) ---
-# sdl3 = "0.1"
+# Affichage réel (optionnel) : nécessite SDL3 installé pour compiler.
+sdl3 = { version = "0.22.0", optional = true }
 
 [profile.release]
 lto = true
