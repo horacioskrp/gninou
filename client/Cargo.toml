@@ -1,0 +1,31 @@
+[package]
+name = "gninou"
+version = "0.1.0"
+edition = "2021"
+description = "Afficher et contrôler un appareil Android depuis le bureau (client desktop)"
+license = "Apache-2.0"
+repository = "https://github.com/karfi/gninou"
+default-run = "gninou"
+
+[[bin]]
+name = "gninou"
+path = "src/main.rs"
+
+[dependencies]
+# CLI
+clap = { version = "4.5.23", features = ["derive"] }
+# logs
+log = "0.4.22"
+env_logger = "0.11.5"
+# erreurs
+anyhow = "1.0.95"
+
+# --- À activer quand on branchera le média (laissés en commentaire pour
+#     un `cargo build` qui passe sans FFmpeg/SDL installés) ---
+# ffmpeg-next = "7.1.0"
+# sdl3 = "0.1"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
