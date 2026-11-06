@@ -2,8 +2,6 @@
 
 > Affiche les appareils Android (**vidéo + audio**) connectés en **USB, TCP/IP ou Wi-Fi**, et permet de les **contrôler au clavier et à la souris** de l'ordinateur. **Sans root** et **sans app installée** sur l'appareil.
 
-Réécriture moderne inspirée de [scrcpy](https://github.com/Genymobile/scrcpy).
-
 ## Deux composants
 
 | Composant | Dossier | Langage | Rôle |
@@ -107,9 +105,24 @@ gninou --tcpip 192.168.1.42:5555     # Wi-Fi / TCP-IP
 gninou -m 1024 --max-fps 60 --no-audio
 ```
 
+## Documentation
+
+- [docs/ROADMAP.md](docs/ROADMAP.md) — feuille de route par phases (ce qu'on suit).
+- [docs/FEATURES.md](docs/FEATURES.md) — liste des fonctionnalités et leur état.
+- [docs/GITFLOW.md](docs/GITFLOW.md) — workflow Git Flow + politique de test.
+- [docs/architecture.md](docs/architecture.md) — architecture détaillée.
+- [tests/README.md](tests/README.md) — procédures de test de bout en bout.
+
+## Développement
+
+Modèle **Git Flow** : `main` (stable) · `develop` (intégration) · `feature/*` (une
+fonctionnalité). Chaque fonctionnalité est **testée** avant fusion dans `develop`
+(voir [GITFLOW.md](docs/GITFLOW.md)). On avance phase par phase selon la roadmap.
+
 ## État du projet
 
-🚧 Squelette structuré. La capture, l'encodage, le transport et le rendu restent à implémenter (voir les `TODO` et la feuille de route).
+🚧 Phase 0 (fondations) quasi terminée. La capture, l'encodage, le transport et le
+rendu restent à implémenter — voir la [roadmap](docs/ROADMAP.md).
 
 ## Licence
 

@@ -2,7 +2,7 @@
 
 ## Principe général
 
-gninou reprend le modèle **client / serveur** de scrcpy :
+gninou repose sur un modèle **client / serveur** :
 
 1. Le **client** (Rust, sur le PC) pousse le binaire du **serveur** sur l'appareil via `adb push`.
 2. Il lance le serveur avec `adb shell app_process ...` (rien n'est installé de façon permanente).
@@ -72,7 +72,7 @@ Rien n'est installé durablement sur l'appareil.
 
 ## Protocole (à figer)
 
-Format de trame : en-tête (`MediaHeader` : pts, taille, keyframe) + charge utile pour vidéo/audio ; messages typés (`ControlMessage`) pour le contrôle. Point de départ : s'inspirer de scrcpy puis simplifier.
+Format de trame : en-tête (`MediaHeader` : pts, taille, keyframe) + charge utile pour vidéo/audio ; messages typés (`ControlMessage`) pour le contrôle. À spécifier au fur et à mesure, en gardant le format le plus simple possible.
 
 ## Feuille de route
 
