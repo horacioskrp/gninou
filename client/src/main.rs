@@ -62,10 +62,11 @@ fn main() -> Result<()> {
         log::info!("codec audio demandé : {}", audio_codec.as_str());
     }
 
-    // (#1) Détection de l'appareil.
+    // (#1/#16) Détection de l'appareil (après connexion TCP/IP éventuelle).
     device::adb::ensure_available()?;
     connection.establish()?;
-    let device = device::adb::detect(args.serial.as_deref())?;
+    let target_serial = connection.serial();
+    let device = device::adb::detect(target_serial.as_deref())?;
     log::info!(
         "appareil sélectionné : {} (état : {:?})",
         device.serial,
