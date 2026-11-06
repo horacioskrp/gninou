@@ -12,6 +12,7 @@
 mod cli;
 mod control;
 mod device;
+mod geometry;
 mod media;
 mod protocol;
 
@@ -42,6 +43,15 @@ fn main() -> Result<()> {
     match bit_rate {
         0 => log::info!("réglages vidéo : {}px max, {}fps, débit auto", args.max_size, args.max_fps),
         br => log::info!("réglages vidéo : {}px max, {}fps, {} bps", args.max_size, args.max_fps, br),
+    }
+
+    // (#13) Validation du crop et de la rotation.
+    if let Some(crop) = args.crop()? {
+        log::info!("rognage demandé : {}", crop.to_arg());
+    }
+    let rotation = args.rotation()?;
+    if rotation != 0 {
+        log::info!("rotation demandée : {rotation}°");
     }
 
     // (#1) Détection de l'appareil.

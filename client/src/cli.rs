@@ -4,6 +4,7 @@ use anyhow::{bail, Result};
 use clap::Parser;
 
 use crate::device::Connection;
+use crate::geometry::{parse_rotation, Crop};
 
 /// Analyse un débit avec suffixe optionnel `K`/`M` (base 1000).
 /// Ex. : `"8M"` -> 8_000_000, `"1500K"` -> 1_500_000, `"4000000"` -> 4_000_000.
@@ -58,6 +59,14 @@ pub struct Cli {
     #[arg(long, value_name = "DÉBIT")]
     pub bit_rate: Option<String>,
 
+    /// Rogner la capture : `W:H:X:Y` (en pixels). Ex. : 1080:2400:0:0
+    #[arg(long, value_name = "W:H:X:Y")]
+    pub crop: Option<String>,
+
+    /// Rotation de l'affichage : 0, 90, 180 ou 270.
+    #[arg(long, default_value = "0")]
+    pub rotation: String,
+
     /// Désactiver l'audio.
     #[arg(long, default_value_t = false)]
     pub no_audio: bool,
@@ -99,6 +108,19 @@ impl Cli {
         }
     }
 
+    /// Rectangle de rognage demandé, validé. `None` si non demandé.
+    pub fn crop(&self) -> Result<Option<Crop>> {
+        match &self.crop {
+            Some(s) => Ok(Some(Crop::parse(s)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// Rotation demandée en degrés (0/90/180/270). Erreur si invalide.
+    pub fn rotation(&self) -> Result<u16> {
+        parse_rotation(&self.rotation)
+    }
+
     /// Arguments transmis au serveur embarqué (format `clé=valeur`).
     pub fn server_args(&self) -> Vec<String> {
         let mut v = Vec::new();
@@ -110,6 +132,14 @@ impl Cli {
         if let Ok(br) = self.bit_rate() {
             if br > 0 {
                 v.push(format!("bit_rate={br}"));
+            }
+        }
+        if let Ok(Some(crop)) = self.crop() {
+            v.push(format!("crop={}", crop.to_arg()));
+        }
+        if let Ok(rot) = self.rotation() {
+            if rot != 0 {
+                v.push(format!("rotation={rot}"));
             }
         }
         if self.no_audio {
