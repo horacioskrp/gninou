@@ -87,7 +87,10 @@ class ScreenEncoder(private val options: Options) {
                 MediaFormat.KEY_COLOR_FORMAT,
                 MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface,
             )
-            setInteger(MediaFormat.KEY_BIT_RATE, VideoCodec.defaultBitrate(w, h, fps))
+            // Débit explicite si fourni, sinon valeur automatique selon la définition.
+            val bitRate = if (options.bitRate > 0) options.bitRate
+                          else VideoCodec.defaultBitrate(w, h, fps)
+            setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
             setInteger(MediaFormat.KEY_FRAME_RATE, fps)
             setFloat(MediaFormat.KEY_I_FRAME_INTERVAL, I_FRAME_INTERVAL_S)
             // Latence faible : pas de B-frames côté encodeur si supporté.

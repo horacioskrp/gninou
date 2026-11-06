@@ -1,8 +1,33 @@
 //! Définition de la ligne de commande.
 
+use anyhow::{bail, Result};
 use clap::Parser;
 
 use crate::device::Connection;
+
+/// Analyse un débit avec suffixe optionnel `K`/`M` (base 1000).
+/// Ex. : `"8M"` -> 8_000_000, `"1500K"` -> 1_500_000, `"4000000"` -> 4_000_000.
+/// Logique pure et testable.
+pub fn parse_bitrate(s: &str) -> Result<u32> {
+    let s = s.trim();
+    if s.is_empty() {
+        bail!("débit vide");
+    }
+    let (num, mult) = match s.chars().last().unwrap() {
+        'k' | 'K' => (&s[..s.len() - 1], 1_000u64),
+        'm' | 'M' => (&s[..s.len() - 1], 1_000_000u64),
+        _ => (s, 1u64),
+    };
+    let base: u64 = num
+        .trim()
+        .parse()
+        .map_err(|_| anyhow::anyhow!("débit invalide : « {s} »"))?;
+    let value = base
+        .checked_mul(mult)
+        .filter(|v| *v <= u32::MAX as u64)
+        .ok_or_else(|| anyhow::anyhow!("débit hors limites : « {s} »"))?;
+    Ok(value as u32)
+}
 
 /// Afficher et contrôler un appareil Android depuis le bureau.
 #[derive(Parser, Debug)]
@@ -28,6 +53,10 @@ pub struct Cli {
     /// Codec vidéo souhaité.
     #[arg(long, default_value = "h264")]
     pub video_codec: String,
+
+    /// Débit vidéo cible (ex. 8M, 1500K). Vide = automatique selon la définition.
+    #[arg(long, value_name = "DÉBIT")]
+    pub bit_rate: Option<String>,
 
     /// Désactiver l'audio.
     #[arg(long, default_value_t = false)]
@@ -62,6 +91,14 @@ impl Cli {
         }
     }
 
+    /// Débit vidéo demandé en bits/s (0 = automatique). Erreur si mal formé.
+    pub fn bit_rate(&self) -> Result<u32> {
+        match &self.bit_rate {
+            Some(s) => parse_bitrate(s),
+            None => Ok(0),
+        }
+    }
+
     /// Arguments transmis au serveur embarqué (format `clé=valeur`).
     pub fn server_args(&self) -> Vec<String> {
         let mut v = Vec::new();
@@ -70,6 +107,11 @@ impl Cli {
         }
         v.push(format!("max_fps={}", self.max_fps));
         v.push(format!("video_codec={}", self.video_codec));
+        if let Ok(br) = self.bit_rate() {
+            if br > 0 {
+                v.push(format!("bit_rate={br}"));
+            }
+        }
         if self.no_audio {
             v.push("audio=false".to_string());
         }
@@ -77,5 +119,34 @@ impl Cli {
             v.push("video=false".to_string());
         }
         v
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_bitrate;
+
+    #[test]
+    fn bitrate_entier_nu() {
+        assert_eq!(parse_bitrate("4000000").unwrap(), 4_000_000);
+    }
+
+    #[test]
+    fn bitrate_suffixe_k_et_m() {
+        assert_eq!(parse_bitrate("1500K").unwrap(), 1_500_000);
+        assert_eq!(parse_bitrate("8M").unwrap(), 8_000_000);
+        assert_eq!(parse_bitrate("8m").unwrap(), 8_000_000);
+    }
+
+    #[test]
+    fn bitrate_invalide() {
+        assert!(parse_bitrate("").is_err());
+        assert!(parse_bitrate("abc").is_err());
+        assert!(parse_bitrate("1.5M").is_err());
+    }
+
+    #[test]
+    fn bitrate_hors_limites() {
+        assert!(parse_bitrate("99999M").is_err()); // > u32::MAX
     }
 }

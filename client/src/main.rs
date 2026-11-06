@@ -37,6 +37,13 @@ fn main() -> Result<()> {
     let codec = media::codec::VideoCodec::parse(&args.video_codec)?;
     log::info!("codec vidéo demandé : {}", codec.as_str());
 
+    // (#12) Validation des réglages (débit) avant tout déploiement.
+    let bit_rate = args.bit_rate()?;
+    match bit_rate {
+        0 => log::info!("réglages vidéo : {}px max, {}fps, débit auto", args.max_size, args.max_fps),
+        br => log::info!("réglages vidéo : {}px max, {}fps, {} bps", args.max_size, args.max_fps, br),
+    }
+
     // (#1) Détection de l'appareil.
     device::adb::ensure_available()?;
     connection.establish()?;
