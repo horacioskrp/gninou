@@ -1,11 +1,19 @@
 //! gninou — client desktop.
 //!
-//! Squelette initial : parse les arguments, prépare le pilotage d'`adb`
-//! et le futur pipeline de décodage/affichage. La logique média n'est
-//! pas encore implémentée.
+//! Affiche et contrôle un appareil Android (vidéo + audio) connecté en
+//! USB, TCP/IP ou Wi-Fi, sans root ni app installée.
+//!
+//! Organisation en modules :
+//!   - `protocol` : définition des trames échangées avec le serveur.
+//!   - `device`   : pilotage d'adb, choix du mode de connexion, tunnel.
+//!   - `media`    : décodage/affichage vidéo et lecture audio.
+//!   - `control`  : capture clavier/souris -> messages de contrôle.
 
-mod adb;
 mod cli;
+mod control;
+mod device;
+mod media;
+mod protocol;
 
 use anyhow::Result;
 use clap::Parser;
@@ -22,17 +30,16 @@ fn main() -> Result<()> {
     log::info!("gninou {} — démarrage", env!("CARGO_PKG_VERSION"));
     log::debug!("arguments : {args:?}");
 
-    if let Some(serial) = &args.serial {
-        log::info!("appareil ciblé : {serial}");
-    } else {
-        log::info!("aucun appareil précisé — premier appareil détecté");
-    }
+    let connection = args.connection();
+    log::info!("mode de connexion : {connection:?}");
 
-    // TODO: 1. adb::ensure_available()
-    //       2. adb::push_server()
-    //       3. adb::open_tunnel()
-    //       4. démarrer le serveur via app_process
-    //       5. décoder (ffmpeg) + afficher (sdl)
+    // TODO (pipeline de bout en bout) :
+    //   1. device::adb::ensure_available()
+    //   2. connection.establish()                 // USB / TCP-IP / Wi-Fi
+    //   3. device::adb::push_server() + lancement via app_process
+    //   4. device::adb::open_tunnel() -> sockets (video / audio / control)
+    //   5. media::video + media::audio (décodage/lecture)
+    //   6. control (capture entrées -> protocol -> socket)
     log::warn!("pipeline média non implémenté — squelette uniquement");
 
     Ok(())

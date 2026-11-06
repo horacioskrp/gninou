@@ -20,7 +20,7 @@ pub fn ensure_available() -> Result<()> {
 
 /// Pousse le binaire du serveur gninou sur l'appareil.
 pub fn push_server(_serial: Option<&str>) -> Result<()> {
-    // TODO: adb [-s serial] push server.jar /data/local/tmp/gninou-server.jar
+    // TODO: adb [-s serial] push gninou-server.jar /data/local/tmp/
     todo!("push du serveur non implémenté")
 }
 

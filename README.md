@@ -1,32 +1,66 @@
 # gninou
 
-> Afficher et contrôler un appareil Android depuis le bureau — réécriture moderne inspirée de [scrcpy](https://github.com/Genymobile/scrcpy).
+> Affiche les appareils Android (**vidéo + audio**) connectés en **USB, TCP/IP ou Wi-Fi**, et permet de les **contrôler au clavier et à la souris** de l'ordinateur. **Sans root** et **sans app installée** sur l'appareil.
 
-**gninou** est composé de deux moitiés :
+Réécriture moderne inspirée de [scrcpy](https://github.com/Genymobile/scrcpy).
+
+## Deux composants
 
 | Composant | Dossier | Langage | Rôle |
 |-----------|---------|---------|------|
-| **Client desktop** | [`client/`](client/) | **Rust** | Reçoit le flux vidéo/audio, décode (FFmpeg) et affiche (SDL), renvoie les événements clavier/souris. |
-| **Serveur device** | [`server/`](server/) | **Kotlin** | Tourne sur l'appareil Android via `app_process`, capture l'écran (`MediaCodec` + `SurfaceControl`) et injecte les entrées. |
+| **Client desktop** | [`client/`](client/) | **Rust** | Pilote adb, reçoit vidéo/audio, décode (FFmpeg) + affiche (SDL), renvoie clavier/souris. |
+| **Serveur device** | [`server/`](server/) | **Kotlin** | Tourne via `app_process`, capture écran + audio, injecte les entrées. |
 
-Les deux dialoguent via **ADB** (tunnel USB ou TCP/IP).
+Les deux dialoguent via **ADB** (USB, TCP/IP ou Wi-Fi), sur trois canaux logiques : **vidéo**, **audio**, **contrôle**.
 
-## Architecture (vue d'ensemble)
+## Arborescence
 
 ```
-┌────────────────────┐        ADB tunnel         ┌─────────────────────┐
-│  Client (Rust)     │  <─── vidéo/audio H.264 ── │  Serveur (Kotlin)   │
-│  FFmpeg + SDL      │  ─── events clavier/souris ─>│  app_process        │
-│  (PC Win/mac/Linux)│                            │  (Android 5.0+)     │
-└────────────────────┘                            └─────────────────────┘
+gninou/
+├── client/                         # CLIENT DESKTOP (Rust)
+│   ├── Cargo.toml
+│   └── src/
+│       ├── main.rs                 # orchestration
+│       ├── cli.rs                  # arguments
+│       ├── protocol/               # trames vidéo/audio/contrôle
+│       ├── device/
+│       │   ├── adb.rs              # ensure / push / tunnel
+│       │   └── connection.rs       # USB · TCP-IP · Wi-Fi
+│       ├── media/
+│       │   ├── video.rs            # décodage + affichage
+│       │   └── audio.rs            # lecture audio
+│       └── control/                # clavier/souris -> protocole
+│
+├── server/                         # SERVEUR DEVICE (Kotlin)
+│   ├── build.gradle.kts
+│   └── src/main/kotlin/io/karfi/gninou/server/
+│       ├── Server.kt               # point d'entrée (app_process)
+│       ├── Options.kt
+│       ├── net/Connection.kt       # sockets du tunnel
+│       ├── video/ScreenEncoder.kt  # SurfaceControl + MediaCodec
+│       ├── audio/AudioEncoder.kt   # capture audio (Android 11+)
+│       ├── control/Controller.kt   # injection d'événements
+│       └── util/Log.kt
+│
+└── docs/architecture.md            # détail + feuille de route
 ```
 
-Voir [`docs/architecture.md`](docs/architecture.md) pour le détail.
+## Architecture
+
+```
+┌────────────────────┐        tunnel ADB          ┌─────────────────────┐
+│  Client (Rust)     │  ◄── vidéo (H.264/H.265) ── │  Serveur (Kotlin)   │
+│  FFmpeg + SDL      │  ◄── audio (Opus/AAC) ───── │  app_process        │
+│  Win / mac / Linux │  ── contrôle (clavier/souris)─►│  Android 5.0+     │
+└────────────────────┘   USB · TCP/IP · Wi-Fi      └─────────────────────┘
+```
+
+Voir [`docs/architecture.md`](docs/architecture.md).
 
 ## Prérequis
 
-- **Client** : Rust (toolchain stable), `pkg-config`, FFmpeg et SDL3 (dev headers), `adb` dans le PATH.
-- **Serveur** : JDK 17+, Android SDK, Gradle (wrapper fourni à générer).
+- **Client** : Rust (stable), `pkg-config`, FFmpeg + SDL3 (dev headers), `adb` dans le PATH.
+- **Serveur** : JDK 17+, Android SDK (`android.jar`), Gradle (wrapper à générer).
 
 ## Démarrage rapide (client)
 
@@ -35,9 +69,17 @@ cd client
 cargo run -- --help
 ```
 
+Exemples d'usage visés :
+
+```bash
+gninou                               # premier appareil USB
+gninou --tcpip 192.168.1.42:5555     # Wi-Fi / TCP-IP
+gninou -m 1024 --max-fps 60 --no-audio
+```
+
 ## État du projet
 
-🚧 Squelette initial — la logique de capture, d'encodage et de transport reste à implémenter.
+🚧 Squelette structuré. La capture, l'encodage, le transport et le rendu restent à implémenter (voir les `TODO` et la feuille de route).
 
 ## Licence
 
