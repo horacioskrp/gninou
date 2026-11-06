@@ -37,4 +37,29 @@ class VideoCodecTest {
         val b = VideoCodec.defaultBitrate(1080, 1920, 30)
         assertTrue(b in 2_000_000..40_000_000)
     }
+
+    @Test
+    fun negocie_le_codec_demande_si_disponible() {
+        val dispo = setOf("video/avc", "video/hevc")
+        assertEquals(VideoCodec.H265, VideoCodec.negotiate(VideoCodec.H265, dispo))
+    }
+
+    @Test
+    fun replie_sur_h264_si_demande_indisponible() {
+        val dispo = setOf("video/avc")
+        assertEquals(VideoCodec.H264, VideoCodec.negotiate(VideoCodec.AV1, dispo))
+    }
+
+    @Test
+    fun replie_sur_premier_disponible_si_pas_de_h264() {
+        val dispo = setOf("video/hevc", "video/av01")
+        assertEquals(VideoCodec.H265, VideoCodec.negotiate(VideoCodec.AV1, dispo))
+    }
+
+    @Test
+    fun aucun_codec_disponible_leve_une_erreur() {
+        assertFailsWith<IllegalStateException> {
+            VideoCodec.negotiate(VideoCodec.H264, emptySet())
+        }
+    }
 }

@@ -33,6 +33,10 @@ fn main() -> Result<()> {
     let connection = args.connection();
     log::info!("mode de connexion : {connection:?}");
 
+    // (#11) Validation du codec vidéo demandé avant tout déploiement.
+    let codec = media::codec::VideoCodec::parse(&args.video_codec)?;
+    log::info!("codec vidéo demandé : {}", codec.as_str());
+
     // (#1) Détection de l'appareil.
     device::adb::ensure_available()?;
     connection.establish()?;
