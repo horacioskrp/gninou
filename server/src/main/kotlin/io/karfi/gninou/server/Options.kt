@@ -12,6 +12,7 @@ data class Options(
     /** Rotation de l'affichage en degrés (0/90/180/270). */
     val rotation: Int = 0,
     val audio: Boolean = true,
+    val audioCodec: String = "opus",
     val video: Boolean = true,
 ) {
     companion object {
@@ -28,6 +29,7 @@ data class Options(
                     "crop" -> opts.copy(crop = value)
                     "rotation" -> opts.copy(rotation = value.toIntOrNull() ?: 0)
                     "audio" -> opts.copy(audio = value != "false")
+                    "audio_codec" -> opts.copy(audioCodec = value.ifEmpty { "opus" })
                     "video" -> opts.copy(video = value != "false")
                     else -> opts
                 }
