@@ -22,7 +22,7 @@ puis fusionnée dans `develop` (voir [GITFLOW.md](GITFLOW.md)).
 | 6 | Décodage vidéo (FFmpeg) | client | FFmpeg | 2 | 🟨 | ✅ (framing) |
 | 7 | Affichage fenêtre (SDL) | client | SDL | 2 | 🟨 | ✅ (cadrage) |
 | 8 | Contrôle souris (clic, déplacement, molette) | client+serveur | — | 3 | 🟨 | ✅ (logique) |
-| 9 | Contrôle clavier | client+serveur | — | 3 | ⬜ | ⬜ |
+| 9 | Contrôle clavier | client+serveur | — | 3 | 🟨 | ✅ (logique) |
 | 10 | Injection d'événements (InputManager) | serveur | — | 3 | ⬜ | ⬜ |
 | 11 | Codec vidéo configurable (H.265/AV1) | client+serveur | — | 4 | ⬜ | ⬜ |
 | 12 | Résolution / FPS / bitrate configurables | client+serveur | — | 4 | ⬜ | ⬜ |
