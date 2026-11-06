@@ -54,6 +54,44 @@ pub fn normalize_addr(addr: &str) -> Result<String> {
     Ok(format!("{host}:{port}"))
 }
 
+/// Longueur du code d'appairage Wi-Fi (Android 11+).
+pub const PAIR_CODE_LEN: usize = 6;
+
+/// Valide un code d'appairage Wi-Fi : exactement 6 chiffres.
+/// Logique **pure et testable**.
+pub fn validate_pair_code(code: &str) -> Result<String> {
+    let code = code.trim();
+    if code.len() != PAIR_CODE_LEN || !code.bytes().all(|b| b.is_ascii_digit()) {
+        bail!("code d'appairage invalide : « {code} » (6 chiffres attendus)");
+    }
+    Ok(code.to_string())
+}
+
+/// Arguments `adb` pour l'appairage Wi-Fi : `pair <hôte:port> <code>`.
+/// Valide l'adresse **et** le code. Logique **pure et testable**.
+///
+/// L'adresse et le port d'appairage sont ceux affichés par l'appareil dans
+/// « Débogage sans fil → Associer l'appareil à l'aide d'un code » ; ce port
+/// est distinct de celui utilisé ensuite pour `adb connect`.
+pub fn pair_args(addr: &str, code: &str) -> Result<Vec<String>> {
+    let target = normalize_addr(addr)?;
+    let code = validate_pair_code(code)?;
+    Ok(vec!["pair".to_string(), target, code])
+}
+
+/// Exécute l'appairage Wi-Fi (Android 11+) via `adb pair`.
+pub fn pair(addr: &str, code: &str) -> Result<()> {
+    let args = pair_args(addr, code)?;
+    log::info!("appairage Wi-Fi vers {}", args[1]);
+    let status = Command::new("adb")
+        .args(&args)
+        .status()
+        .context("échec de `adb pair`")?;
+    anyhow::ensure!(status.success(), "`adb pair {}` a échoué", args[1]);
+    log::info!("appairage réussi ; connectez-vous ensuite avec --tcpip <ip:port>");
+    Ok(())
+}
+
 impl Connection {
     /// Prépare la connexion (ex. `adb connect` pour le TCP/IP).
     pub fn establish(&self) -> Result<()> {
@@ -122,5 +160,34 @@ mod tests {
     fn serial_tcpip_normalise() {
         let c = Connection::TcpIp("10.0.0.5".into());
         assert_eq!(c.serial(), Some("10.0.0.5:5555".into()));
+    }
+
+    #[test]
+    fn code_appairage_valide() {
+        assert_eq!(validate_pair_code("123456").unwrap(), "123456");
+        assert_eq!(validate_pair_code(" 000000 ").unwrap(), "000000");
+    }
+
+    #[test]
+    fn code_appairage_invalide() {
+        assert!(validate_pair_code("12345").is_err()); // trop court
+        assert!(validate_pair_code("1234567").is_err()); // trop long
+        assert!(validate_pair_code("12 456").is_err()); // non chiffre
+        assert!(validate_pair_code("abcdef").is_err());
+        assert!(validate_pair_code("").is_err());
+    }
+
+    #[test]
+    fn pair_args_complets() {
+        assert_eq!(
+            pair_args("192.168.1.42:37123", "123456").unwrap(),
+            vec!["pair", "192.168.1.42:37123", "123456"],
+        );
+    }
+
+    #[test]
+    fn pair_args_rejette_adresse_ou_code() {
+        assert!(pair_args("", "123456").is_err());
+        assert!(pair_args("192.168.1.42:37123", "oops").is_err());
     }
 }

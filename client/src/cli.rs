@@ -43,6 +43,16 @@ pub struct Cli {
     #[arg(long, value_name = "IP:PORT")]
     pub tcpip: Option<String>,
 
+    /// Appairage sans fil (Android 11+) : adresse `ip:port` du dialogue
+    /// « Associer l'appareil à l'aide d'un code ». À combiner avec --pair-code
+    /// puis --tcpip pour la connexion. Ex. : --pair 192.168.1.42:37123
+    #[arg(long, value_name = "IP:PORT", requires = "pair_code")]
+    pub pair: Option<String>,
+
+    /// Code d'appairage à 6 chiffres affiché par l'appareil (avec --pair).
+    #[arg(long, value_name = "CODE", requires = "pair")]
+    pub pair_code: Option<String>,
+
     /// Résolution maximale (bord le plus long, en pixels). 0 = illimité.
     #[arg(short = 'm', long, default_value_t = 0)]
     pub max_size: u32,
@@ -90,6 +100,15 @@ impl Cli {
             0 => log::LevelFilter::Info,
             1 => log::LevelFilter::Debug,
             _ => log::LevelFilter::Trace,
+        }
+    }
+
+    /// Appairage Wi-Fi demandé : `(adresse, code)`. `None` si non demandé.
+    /// clap garantit que les deux options vont de pair (`requires`).
+    pub fn pairing(&self) -> Option<(&str, &str)> {
+        match (&self.pair, &self.pair_code) {
+            (Some(addr), Some(code)) => Some((addr.as_str(), code.as_str())),
+            _ => None,
         }
     }
 
