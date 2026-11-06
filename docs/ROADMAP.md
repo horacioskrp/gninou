@@ -50,8 +50,8 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 
 - [~] (#11) Codecs configurables (H.265 / AV1) — validation client + négociation serveur (repli) testées ; requête MediaCodecList réelle à brancher
 - [~] (#12) Résolution / FPS / bitrate — options câblées client→serveur, parsing débit (K/M) testé ; application MediaFormat à valider sur matériel
-- [ ] (#13) Rognage (crop) et rotation
-- **Test de phase** : comparatif qualité/latence selon réglages.
+- [~] (#13) Rognage (crop) et rotation — parsing/validation (client) + application projection (serveur) ; validation matériel requise
+- **Test de phase** : comparatif qualité/latence selon réglages — ⬜ à valider sur matériel.
 
 ## Phase 5 — Audio & presse-papiers
 

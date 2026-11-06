@@ -7,6 +7,10 @@ data class Options(
     val videoCodec: String = "h264",
     /** Débit vidéo en bits/s ; 0 = automatique (calculé selon la définition). */
     val bitRate: Int = 0,
+    /** Rognage `W:H:X:Y` ou vide (pas de rognage). */
+    val crop: String = "",
+    /** Rotation de l'affichage en degrés (0/90/180/270). */
+    val rotation: Int = 0,
     val audio: Boolean = true,
     val video: Boolean = true,
 ) {
@@ -21,6 +25,8 @@ data class Options(
                     "max_fps" -> opts.copy(maxFps = value.toIntOrNull() ?: 60)
                     "video_codec" -> opts.copy(videoCodec = value.ifEmpty { "h264" })
                     "bit_rate" -> opts.copy(bitRate = value.toIntOrNull() ?: 0)
+                    "crop" -> opts.copy(crop = value)
+                    "rotation" -> opts.copy(rotation = value.toIntOrNull() ?: 0)
                     "audio" -> opts.copy(audio = value != "false")
                     "video" -> opts.copy(video = value != "false")
                     else -> opts

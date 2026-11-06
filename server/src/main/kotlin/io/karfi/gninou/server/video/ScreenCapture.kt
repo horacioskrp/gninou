@@ -38,18 +38,34 @@ class ScreenCapture(private val options: Options) {
         val d = SurfaceControl.createDisplay("gninou", secure)
         display = d
 
+        // Source = écran réel, éventuellement rogné (#13).
+        val source = cropRect(info.width, info.height)
+        // Rotation : rotation système + rotation demandée (en quarts de tour).
+        val rotation = (info.rotation + options.rotation / 90) % 4
+
         SurfaceControl.openTransaction()
         try {
             SurfaceControl.setDisplaySurface(d, surface)
-            // Source = écran réel ; destination = surface de l'encodeur.
-            val source = Rect(0, 0, info.width, info.height)
             val dest = Rect(0, 0, w, h)
-            SurfaceControl.setDisplayProjection(d, info.rotation, source, dest)
+            SurfaceControl.setDisplayProjection(d, rotation, source, dest)
             SurfaceControl.setDisplayLayerStack(d, 0) // layerStack de l'affichage principal
         } finally {
             SurfaceControl.closeTransaction()
         }
         return w to h
+    }
+
+    /** Rectangle source : plein écran, ou rognage `W:H:X:Y` s'il est valide. */
+    private fun cropRect(fullW: Int, fullH: Int): Rect {
+        val parts = options.crop.split(':').mapNotNull { it.toIntOrNull() }
+        if (parts.size == 4) {
+            val (cw, ch, cx, cy) = parts
+            if (cw > 0 && ch > 0 && cx + cw <= fullW && cy + ch <= fullH) {
+                return Rect(cx, cy, cx + cw, cy + ch)
+            }
+            Log.w("crop « ${options.crop} » hors écran ${fullW}x$fullH — ignoré")
+        }
+        return Rect(0, 0, fullW, fullH)
     }
 
     /** Détruit le display virtuel. */

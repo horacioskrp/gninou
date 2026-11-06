@@ -26,7 +26,7 @@ puis fusionnée dans `develop` (voir [GITFLOW.md](GITFLOW.md)).
 | 10 | Injection d'événements (InputManager) | serveur | — | 3 | 🟨 | ✅ (désérialisation) |
 | 11 | Codec vidéo configurable (H.265/AV1) | client+serveur | — | 4 | 🟨 | ✅ (logique) |
 | 12 | Résolution / FPS / bitrate configurables | client+serveur | — | 4 | 🟨 | ✅ (parsing) |
-| 13 | Rognage (crop) et rotation | client+serveur | — | 4 | ⬜ | ⬜ |
+| 13 | Rognage (crop) et rotation | client+serveur | — | 4 | 🟨 | ✅ (parsing) |
 | 14 | Audio forwarding | client+serveur | Android 11+ | 5 | ⬜ | ⬜ |
 | 15 | Presse-papiers bidirectionnel | client+serveur | — | 5 | ⬜ | ⬜ |
 | 16 | Connexion TCP/IP | client | — | 6 | ⬜ | ⬜ |
