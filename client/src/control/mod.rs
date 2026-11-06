@@ -6,6 +6,8 @@
 //! la **traduction des coordonnées** et le **mapping des boutons** sont purs
 //! et testés ici.
 
+pub mod keyboard;
+
 use crate::media::display::Rect;
 use crate::protocol::ControlMessage;
 
