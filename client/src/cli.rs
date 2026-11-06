@@ -94,6 +94,10 @@ pub struct Cli {
     #[arg(long, default_value_t = false)]
     pub no_video: bool,
 
+    /// Enregistrer le flux dans un fichier (.mp4 ou .mkv) en plus de l'affichage.
+    #[arg(long, value_name = "FICHIER")]
+    pub record: Option<std::path::PathBuf>,
+
     /// Verbosité (-v, -vv, -vvv).
     #[arg(short, long, action = clap::ArgAction::Count)]
     pub verbose: u8,

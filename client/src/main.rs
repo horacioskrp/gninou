@@ -55,12 +55,29 @@ fn main() -> Result<()> {
     }
 
     // (#14) Audio : validation du codec si l'audio est activé.
-    if args.no_audio {
+    let audio_codec = if args.no_audio {
         log::info!("audio désactivé");
+        None
     } else {
         let audio_codec = media::audio::AudioCodec::parse(&args.audio_codec)?;
         log::info!("codec audio demandé : {}", audio_codec.as_str());
-    }
+        Some(audio_codec)
+    };
+
+    // (#19) Enregistrement : valide tôt le conteneur et la compatibilité des
+    // codecs (échec immédiat avant tout déploiement si le choix est invalide).
+    let recorder = match &args.record {
+        Some(path) => {
+            let rec = media::recorder::Recorder::create(path, codec, audio_codec)?;
+            log::info!(
+                "enregistrement activé : {} (conteneur {})",
+                rec.path().display(),
+                rec.container().extension()
+            );
+            Some(rec)
+        }
+        None => None,
+    };
 
     // (#1/#16/#17) Détection de l'appareil (après appairage/connexion réseau).
     device::adb::ensure_available()?;
@@ -127,6 +144,11 @@ fn main() -> Result<()> {
             //   #4-7.  media::video + media::audio (décodage/lecture)
             //   #8-10. control (capture entrées -> protocol -> socket)
         }
+    }
+
+    // (#19) Finalise le fichier d'enregistrement (écriture du trailer).
+    if let Some(rec) = recorder {
+        rec.finish()?;
     }
 
     log::warn!("média et contrôle non implémentés — prochaines fonctionnalités");

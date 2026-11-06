@@ -68,7 +68,7 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 
 ## Phase 7 — Enregistrement & affichages
 
-- [ ] (#19) Enregistrement (mp4/mkv)
+- [~] (#19) Enregistrement (mp4/mkv) — option `--record`, choix conteneur par extension + compat codec testés ; multiplexage réel derrière la feature `ffmpeg`
 - [ ] (#20) Affichage écran éteint
 - [ ] (#21) Écran virtuel / nouvel affichage
 - **Test de phase** : fichier enregistré lisible, display virtuel fonctionnel.
