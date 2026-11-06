@@ -7,6 +7,8 @@
 //!
 //! Le format exact reste à figer ; les types ci-dessous sont des esquisses.
 
+use anyhow::{bail, Result};
+
 /// En-tête commun préfixant chaque trame multimédia.
 #[derive(Debug, Clone)]
 pub struct MediaHeader {
@@ -75,9 +77,63 @@ impl ControlMessage {
     }
 }
 
+/// Octet de type (tag) ouvrant chaque message **appareil → client**.
+pub mod device_type {
+    pub const CLIPBOARD: u8 = 0;
+}
+
+/// Message envoyé par l'appareil vers le client (canal appareil→PC).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DeviceMessage {
+    /// Nouveau contenu du presse-papiers de l'appareil (à recopier sur le PC).
+    Clipboard { text: String },
+}
+
+impl DeviceMessage {
+    /// Décode un message appareil→client (miroir de l'encodage serveur).
+    pub fn decode(data: &[u8]) -> Result<DeviceMessage> {
+        let tag = *data.first().ok_or_else(|| anyhow::anyhow!("message vide"))?;
+        match tag {
+            device_type::CLIPBOARD => {
+                if data.len() < 5 {
+                    bail!("message clipboard tronqué");
+                }
+                let len = u32::from_be_bytes([data[1], data[2], data[3], data[4]]) as usize;
+                let end = 5 + len;
+                if data.len() < end {
+                    bail!("longueur de clipboard incohérente");
+                }
+                let text = String::from_utf8(data[5..end].to_vec())
+                    .map_err(|_| anyhow::anyhow!("clipboard non UTF-8"))?;
+                Ok(DeviceMessage::Clipboard { text })
+            }
+            other => bail!("type de message appareil inconnu : {other}"),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn decode_clipboard() {
+        let bytes = [device_type::CLIPBOARD, 0, 0, 0, 2, b'h', b'i'];
+        assert_eq!(
+            DeviceMessage::decode(&bytes).unwrap(),
+            DeviceMessage::Clipboard { text: "hi".into() }
+        );
+    }
+
+    #[test]
+    fn decode_clipboard_tronque_erreur() {
+        assert!(DeviceMessage::decode(&[device_type::CLIPBOARD, 0, 0, 0, 5, b'x']).is_err());
+    }
+
+    #[test]
+    fn decode_type_inconnu_erreur() {
+        assert!(DeviceMessage::decode(&[99, 0]).is_err());
+    }
 
     #[test]
     fn encode_pointer() {
