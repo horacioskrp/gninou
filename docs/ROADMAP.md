@@ -43,8 +43,8 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 
 - [~] (#8) Souris (clic, déplacement, molette) — encodage des messages + projection coordonnées fenêtre→appareil testés ; capture (SDL #7) et injection (#10) pour le bout en bout
 - [~] (#9) Clavier — table keycodes Android + construction des messages testées ; capture (SDL #7) et injection (#10) pour le bout en bout
-- [ ] (#10) Injection d'événements (InputManager)
-- **Test de phase** : naviguer et taper du texte sur l'appareil.
+- [~] (#10) Injection d'événements (InputManager) — désérialisation des messages testée ; injection (API masquée) à valider sur matériel
+- **Test de phase** : naviguer et taper du texte sur l'appareil — ⬜ à valider sur matériel (voir tests/e2e/10).
 
 ## Phase 4 — Qualité & réglages
 
