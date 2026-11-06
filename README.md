@@ -126,4 +126,4 @@ rendu restent à implémenter — voir la [roadmap](docs/ROADMAP.md).
 
 ## Licence
 
-Apache-2.0 (à confirmer).
+Projet **open source** distribué sous licence [Apache-2.0](LICENSE).
