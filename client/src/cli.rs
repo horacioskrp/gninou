@@ -34,9 +34,14 @@ pub fn parse_bitrate(s: &str) -> Result<u32> {
 #[derive(Parser, Debug)]
 #[command(name = "gninou", version, about, long_about = None)]
 pub struct Cli {
-    /// Numéro de série de l'appareil ciblé (adb -s). Optionnel.
-    #[arg(short, long)]
-    pub serial: Option<String>,
+    /// Numéro de série d'un appareil ciblé (adb -s). Répétable pour piloter
+    /// plusieurs appareils : --serial A --serial B. Optionnel.
+    #[arg(short, long, value_name = "SERIAL")]
+    pub serial: Vec<String>,
+
+    /// Piloter tous les appareils en ligne (incompatible avec --serial / réseau).
+    #[arg(long, default_value_t = false, conflicts_with_all = ["serial", "tcpip", "pair"])]
+    pub all: bool,
 
     /// Se connecter en TCP/IP (Wi-Fi) à cette adresse `ip:port`.
     /// Ex. : --tcpip 192.168.1.42:5555
@@ -112,13 +117,20 @@ impl Cli {
         }
     }
 
+    /// Numéros de série explicitement ciblés (peut être vide).
+    pub fn target_serials(&self) -> &[String] {
+        &self.serial
+    }
+
     /// Détermine le mode de connexion demandé.
     pub fn connection(&self) -> Connection {
         if let Some(addr) = &self.tcpip {
             Connection::TcpIp(addr.clone())
         } else {
+            // En USB, le premier série (le cas échéant) sert à cibler la connexion ;
+            // la liste complète pilote le multi-appareils (voir target_serials()).
             Connection::Usb {
-                serial: self.serial.clone(),
+                serial: self.serial.first().cloned(),
             }
         }
     }

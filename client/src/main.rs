@@ -71,46 +71,62 @@ fn main() -> Result<()> {
     }
 
     connection.establish()?;
-    let target_serial = connection.serial();
-    let device = device::adb::detect(target_serial.as_deref())?;
+
+    // (#1/#16/#17/#18) Résolution des appareils cibles.
+    // En réseau (TCP/IP) la cible est l'adresse connectée ; en USB on peut
+    // piloter plusieurs appareils (--serial répété ou --all).
+    let targets = match &connection {
+        device::Connection::TcpIp(_) => {
+            vec![device::adb::detect(connection.serial().as_deref())?]
+        }
+        device::Connection::Usb { .. } => {
+            device::adb::detect_targets(args.target_serials(), args.all)?
+        }
+    };
     log::info!(
-        "appareil sélectionné : {} (état : {:?})",
-        device.serial,
-        device.state
+        "{} appareil(s) ciblé(s) : {:?}",
+        targets.len(),
+        targets.iter().map(|d| &d.serial).collect::<Vec<_>>()
     );
 
-    // (#2/#3) Déploiement du serveur + tunnel.
+    // (#2/#3/#18) Déploiement du serveur + tunnel, par appareil.
     // Ordre important en mode reverse : push → ouvrir le tunnel (on écoute) →
     // démarrer le serveur (qui se connecte) → accepter la connexion.
+    // Chaque appareil reçoit un port local distinct pour éviter les collisions.
     if device::server_bin::is_placeholder() {
         log::warn!(
             "serveur embarqué = placeholder vide (build sans SDK Android) : \
              déploiement sauté. Recompilez avec GNINOU_BUILD_SERVER=1."
         );
     } else {
-        let serial = Some(device.serial.as_str());
+        let server_args = args.server_args();
+        for (i, dev) in targets.iter().enumerate() {
+            let serial = Some(dev.serial.as_str());
+            let port = device::tunnel::DEFAULT_PORT + i as u16;
 
-        device::server_bin::push(serial)?;
-        log::info!("serveur poussé sur {}", device.serial);
+            device::server_bin::push(serial)?;
+            log::info!("serveur poussé sur {}", dev.serial);
 
-        let tunnel = device::Tunnel::open_reverse(serial, device::tunnel::DEFAULT_PORT)?;
-        log::info!(
-            "tunnel {:?} ouvert (localabstract:{} ↔ tcp:{})",
-            tunnel.mode,
-            device::tunnel::SOCKET_NAME,
-            tunnel.port
-        );
+            let tunnel = device::Tunnel::open_reverse(serial, port)?;
+            log::info!(
+                "[{}] tunnel {:?} ouvert (localabstract:{} ↔ tcp:{})",
+                dev.serial,
+                tunnel.mode,
+                device::tunnel::SOCKET_NAME,
+                tunnel.port
+            );
 
-        let _server = device::server_bin::start(serial, &args.server_args())?;
-        log::info!("serveur lancé sur {}", device.serial);
+            let _server = device::server_bin::start(serial, &server_args)?;
+            log::info!("serveur lancé sur {}", dev.serial);
 
-        // #3 : le canal est prêt ; la lecture du handshake arrive avec le protocole.
-        let _channel = tunnel.accept()?;
-        log::info!("connexion établie avec le serveur (handshake)");
+            // #3 : le canal est prêt ; la lecture du handshake arrive avec le protocole.
+            let _channel = tunnel.accept()?;
+            log::info!("[{}] connexion établie avec le serveur (handshake)", dev.serial);
 
-        // TODO (suite du pipeline) :
-        //   #4-7.  media::video + media::audio (décodage/lecture)
-        //   #8-10. control (capture entrées -> protocol -> socket)
+            // TODO (suite du pipeline, par appareil) :
+            //   #4-7.  media::video + media::audio (décodage/lecture)
+            //   #8-10. control (capture entrées -> protocol -> socket)
+        }
     }
 
     log::warn!("média et contrôle non implémentés — prochaines fonctionnalités");

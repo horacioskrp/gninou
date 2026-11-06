@@ -134,10 +134,49 @@ pub fn select_device(devices: &[Device], serial: Option<&str>) -> Result<Device>
     }
 }
 
+/// Sélectionne **plusieurs** appareils cibles (fonctionnalité multi-appareils).
+///
+/// - `all` vrai : tous les appareils en ligne (erreur si aucun).
+/// - sinon, `wanted` non vide : chaque série demandée, qui doit exister et être
+///   en ligne ; les doublons sont ignorés en conservant l'ordre de la demande.
+/// - sinon (`wanted` vide, `all` faux) : l'unique appareil en ligne, via
+///   [`select_device`] (erreur si 0 ou plusieurs).
+///
+/// Logique **pure et testable**.
+pub fn select_devices(devices: &[Device], wanted: &[String], all: bool) -> Result<Vec<Device>> {
+    if all {
+        let online: Vec<Device> = devices.iter().filter(|d| d.is_online()).cloned().collect();
+        anyhow::ensure!(
+            !online.is_empty(),
+            "aucun appareil prêt à piloter (option --all)"
+        );
+        return Ok(online);
+    }
+
+    if !wanted.is_empty() {
+        let mut selected: Vec<Device> = Vec::new();
+        for w in wanted {
+            if selected.iter().any(|d| &d.serial == w) {
+                continue; // doublon explicite : ignoré
+            }
+            selected.push(select_device(devices, Some(w))?);
+        }
+        return Ok(selected);
+    }
+
+    Ok(vec![select_device(devices, None)?])
+}
+
 /// Détecte et sélectionne l'appareil cible en une étape.
 pub fn detect(serial: Option<&str>) -> Result<Device> {
     let devices = list_devices()?;
     select_device(&devices, serial)
+}
+
+/// Détecte et sélectionne la liste d'appareils cibles en une étape.
+pub fn detect_targets(wanted: &[String], all: bool) -> Result<Vec<Device>> {
+    let devices = list_devices()?;
+    select_devices(&devices, wanted, all)
 }
 
 /// Ouvre un tunnel (reverse de préférence, forward en repli). — à venir (#3)
@@ -214,5 +253,55 @@ mod tests {
     fn select_serial_non_pret() {
         let devs = vec![Device { serial: "A".into(), state: DeviceState::Unauthorized }];
         assert!(select_device(&devs, Some("A")).is_err());
+    }
+
+    // --- Multi-appareils (#18) ---
+
+    fn serials(devs: &[Device]) -> Vec<String> {
+        devs.iter().map(|d| d.serial.clone()).collect()
+    }
+
+    #[test]
+    fn multi_all_en_ligne() {
+        let devs = vec![
+            online("A"),
+            Device { serial: "B".into(), state: DeviceState::Offline },
+            online("C"),
+        ];
+        let got = select_devices(&devs, &[], true).unwrap();
+        assert_eq!(serials(&got), vec!["A", "C"]); // l'offline est exclu
+    }
+
+    #[test]
+    fn multi_all_aucun_pret() {
+        let devs = vec![Device { serial: "A".into(), state: DeviceState::Offline }];
+        assert!(select_devices(&devs, &[], true).is_err());
+    }
+
+    #[test]
+    fn multi_liste_explicite_ordre_conserve() {
+        let devs = vec![online("A"), online("B"), online("C")];
+        let got = select_devices(&devs, &["C".into(), "A".into()], false).unwrap();
+        assert_eq!(serials(&got), vec!["C", "A"]);
+    }
+
+    #[test]
+    fn multi_doublons_ignores() {
+        let devs = vec![online("A"), online("B")];
+        let got = select_devices(&devs, &["A".into(), "A".into(), "B".into()], false).unwrap();
+        assert_eq!(serials(&got), vec!["A", "B"]);
+    }
+
+    #[test]
+    fn multi_serial_inconnu_echoue() {
+        let devs = vec![online("A")];
+        assert!(select_devices(&devs, &["A".into(), "Z".into()], false).is_err());
+    }
+
+    #[test]
+    fn multi_vide_delegue_unique() {
+        let devs = vec![online("ONE")];
+        let got = select_devices(&devs, &[], false).unwrap();
+        assert_eq!(serials(&got), vec!["ONE"]);
     }
 }

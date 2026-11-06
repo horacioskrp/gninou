@@ -63,8 +63,8 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 
 - [x] (#16) Connexion TCP/IP — `adb connect` + validation/normalisation `ip:port` testées ; connexion réseau à valider sur matériel
 - [x] (#17) Appairage sans fil (Wi-Fi, Android 11+) — `adb pair` + validation code 6 chiffres testée ; appairage réseau à valider sur matériel
-- [ ] (#18) Multi-appareils
-- **Test de phase** : miroir via Wi-Fi, deux appareils en parallèle.
+- [x] (#18) Multi-appareils — `--serial` répétable + `--all`, sélection testée, un tunnel/port par appareil ; pilotage parallèle réel dépend du pipeline média
+- **Test de phase** : miroir via Wi-Fi, deux appareils en parallèle — ⬜ à valider sur matériel (voir tests/e2e/18).
 
 ## Phase 7 — Enregistrement & affichages
 
