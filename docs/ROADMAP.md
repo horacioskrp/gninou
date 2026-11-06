@@ -22,7 +22,7 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 > Objectif : le client détecte l'appareil, pousse et lance le serveur, ouvre le tunnel.
 > Pas encore d'image — juste un « hello » qui transite.
 
-- [ ] (#1) Détection d'appareil + wrapper adb
+- [x] (#1) Détection d'appareil + wrapper adb — tests unitaires verts, e2e à valider sur matériel
 - [ ] (#2) Push + lancement du serveur via `app_process`
 - [ ] (#3) Tunnel adb + ouverture des sockets (vidéo / audio / contrôle)
 - **Test de phase** : handshake client ↔ serveur sur un vrai appareil USB.
