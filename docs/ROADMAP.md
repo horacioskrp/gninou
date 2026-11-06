@@ -32,7 +32,7 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 > Objectif : voir l'écran du téléphone dans une fenêtre.
 
 - [~] (#4) Capture écran (SurfaceControl) — structure + logique de dimensionnement (test écrit) ; `DisplayInfo.primary()` à brancher par version d'Android, validation SDK/matériel requise
-- [ ] (#5) Encodage H.264 (MediaCodec)
+- [~] (#5) Encodage H.264 (MediaCodec) — pipeline capture→encodeur→sink écrit, sélection codec/débit testée ; validation SDK/matériel requise
 - [ ] (#6) Décodage FFmpeg
 - [ ] (#7) Affichage SDL
 - **Test de phase** : affichage fluide de l'écran, mesure latence/FPS.
