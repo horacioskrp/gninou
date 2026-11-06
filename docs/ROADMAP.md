@@ -41,7 +41,7 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 
 > Objectif : piloter le téléphone au clavier et à la souris.
 
-- [ ] (#8) Souris (clic, déplacement, molette)
+- [~] (#8) Souris (clic, déplacement, molette) — encodage des messages + projection coordonnées fenêtre→appareil testés ; capture (SDL #7) et injection (#10) pour le bout en bout
 - [ ] (#9) Clavier
 - [ ] (#10) Injection d'événements (InputManager)
 - **Test de phase** : naviguer et taper du texte sur l'appareil.
