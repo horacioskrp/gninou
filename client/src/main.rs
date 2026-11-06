@@ -33,6 +33,16 @@ fn main() -> Result<()> {
     let connection = args.connection();
     log::info!("mode de connexion : {connection:?}");
 
+    // (#1) Détection de l'appareil.
+    device::adb::ensure_available()?;
+    connection.establish()?;
+    let device = device::adb::detect(args.serial.as_deref())?;
+    log::info!(
+        "appareil sélectionné : {} (état : {:?})",
+        device.serial,
+        device.state
+    );
+
     if device::server_bin::is_placeholder() {
         log::warn!(
             "serveur embarqué = placeholder vide (build sans SDK Android). \
@@ -40,14 +50,11 @@ fn main() -> Result<()> {
         );
     }
 
-    // TODO (pipeline de bout en bout) :
-    //   1. device::adb::ensure_available()
-    //   2. connection.establish()                     // USB / TCP-IP / Wi-Fi
-    //   3. device::server_bin::push() + server_bin::start()  // serveur embarqué
-    //   4. device::adb::open_tunnel() -> sockets (video / audio / control)
-    //   5. media::video + media::audio (décodage/lecture)
-    //   6. control (capture entrées -> protocol -> socket)
-    log::warn!("pipeline média non implémenté — squelette uniquement");
+    // TODO (suite du pipeline) :
+    //   #2/#3. device::server_bin::push()+start() + device::adb::open_tunnel()
+    //   #4-7.  media::video + media::audio (décodage/lecture)
+    //   #8-10. control (capture entrées -> protocol -> socket)
+    log::warn!("transport et média non implémentés — prochaines fonctionnalités");
 
     Ok(())
 }
