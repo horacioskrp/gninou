@@ -27,7 +27,7 @@ puis fusionnée dans `develop` (voir [GITFLOW.md](GITFLOW.md)).
 | 11 | Codec vidéo configurable (H.265/AV1) | client+serveur | — | 4 | 🟨 | ✅ (logique) |
 | 12 | Résolution / FPS / bitrate configurables | client+serveur | — | 4 | 🟨 | ✅ (parsing) |
 | 13 | Rognage (crop) et rotation | client+serveur | — | 4 | 🟨 | ✅ (parsing) |
-| 14 | Audio forwarding | client+serveur | Android 11+ | 5 | ⬜ | ⬜ |
+| 14 | Audio forwarding | client+serveur | Android 11+ | 5 | 🟨 | ✅ (codec/pipeline) |
 | 15 | Presse-papiers bidirectionnel | client+serveur | — | 5 | ⬜ | ⬜ |
 | 16 | Connexion TCP/IP | client | — | 6 | ⬜ | ⬜ |
 | 17 | Appairage sans fil (Wi-Fi) | client | Android 11+ | 6 | ⬜ | ⬜ |

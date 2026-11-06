@@ -71,6 +71,10 @@ pub struct Cli {
     #[arg(long, default_value_t = false)]
     pub no_audio: bool,
 
+    /// Codec audio souhaité (opus, aac, raw).
+    #[arg(long, default_value = "opus")]
+    pub audio_codec: String,
+
     /// Désactiver la vidéo (contrôle/audio seuls).
     #[arg(long, default_value_t = false)]
     pub no_video: bool,
@@ -144,6 +148,8 @@ impl Cli {
         }
         if self.no_audio {
             v.push("audio=false".to_string());
+        } else {
+            v.push(format!("audio_codec={}", self.audio_codec));
         }
         if self.no_video {
             v.push("video=false".to_string());

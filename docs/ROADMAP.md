@@ -55,7 +55,7 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 
 ## Phase 5 — Audio & presse-papiers
 
-- [ ] (#14) Audio forwarding (Android 11+)
+- [~] (#14) Audio forwarding (Android 11+) — codec audio + pipeline (client) et résolution (serveur) testés ; capture AudioRecord + lecture réelle à brancher/valider
 - [ ] (#15) Presse-papiers bidirectionnel
 - **Test de phase** : son synchronisé, copier-coller dans les deux sens.
 

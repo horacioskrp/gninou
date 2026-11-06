@@ -54,6 +54,14 @@ fn main() -> Result<()> {
         log::info!("rotation demandée : {rotation}°");
     }
 
+    // (#14) Audio : validation du codec si l'audio est activé.
+    if args.no_audio {
+        log::info!("audio désactivé");
+    } else {
+        let audio_codec = media::audio::AudioCodec::parse(&args.audio_codec)?;
+        log::info!("codec audio demandé : {}", audio_codec.as_str());
+    }
+
     // (#1) Détection de l'appareil.
     device::adb::ensure_available()?;
     connection.establish()?;
