@@ -43,25 +43,41 @@ fn main() -> Result<()> {
         device.state
     );
 
-    // (#2) Déploiement du serveur embarqué sur l'appareil.
-    let _server = if device::server_bin::is_placeholder() {
+    // (#2/#3) Déploiement du serveur + tunnel.
+    // Ordre important en mode reverse : push → ouvrir le tunnel (on écoute) →
+    // démarrer le serveur (qui se connecte) → accepter la connexion.
+    if device::server_bin::is_placeholder() {
         log::warn!(
             "serveur embarqué = placeholder vide (build sans SDK Android) : \
              déploiement sauté. Recompilez avec GNINOU_BUILD_SERVER=1."
         );
-        None
     } else {
         let serial = Some(device.serial.as_str());
-        let child = device::server_bin::deploy(serial, &args.server_args())?;
-        log::info!("serveur déployé et lancé sur {}", device.serial);
-        Some(child)
-    };
 
-    // TODO (suite du pipeline) :
-    //   #3.    device::adb::open_tunnel() -> sockets (video / audio / control)
-    //   #4-7.  media::video + media::audio (décodage/lecture)
-    //   #8-10. control (capture entrées -> protocol -> socket)
-    log::warn!("tunnel et média non implémentés — prochaines fonctionnalités");
+        device::server_bin::push(serial)?;
+        log::info!("serveur poussé sur {}", device.serial);
+
+        let tunnel = device::Tunnel::open_reverse(serial, device::tunnel::DEFAULT_PORT)?;
+        log::info!(
+            "tunnel {:?} ouvert (localabstract:{} ↔ tcp:{})",
+            tunnel.mode,
+            device::tunnel::SOCKET_NAME,
+            tunnel.port
+        );
+
+        let _server = device::server_bin::start(serial, &args.server_args())?;
+        log::info!("serveur lancé sur {}", device.serial);
+
+        // #3 : le canal est prêt ; la lecture du handshake arrive avec le protocole.
+        let _channel = tunnel.accept()?;
+        log::info!("connexion établie avec le serveur (handshake)");
+
+        // TODO (suite du pipeline) :
+        //   #4-7.  media::video + media::audio (décodage/lecture)
+        //   #8-10. control (capture entrées -> protocol -> socket)
+    }
+
+    log::warn!("média et contrôle non implémentés — prochaines fonctionnalités");
 
     Ok(())
 }

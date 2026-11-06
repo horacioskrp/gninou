@@ -16,7 +16,7 @@ puis fusionnée dans `develop` (voir [GITFLOW.md](GITFLOW.md)).
 |---|----------------|-----------|----------|-------|------|-------|
 | 1 | Détection d'appareil + wrapper adb | client | adb | 1 | ✅ | ✅ (unit) |
 | 2 | Push + lancement du serveur (app_process) | client+serveur | — | 1 | ✅ | ✅ (unit) |
-| 3 | Tunnel adb (reverse/forward) + sockets | client+serveur | — | 1 | ⬜ | ⬜ |
+| 3 | Tunnel adb (reverse/forward) + sockets | client+serveur | — | 1 | ✅ | ✅ (unit) |
 | 4 | Capture écran (SurfaceControl) | serveur | Android 5.0+ | 2 | ⬜ | ⬜ |
 | 5 | Encodage vidéo (MediaCodec H.264) | serveur | — | 2 | ⬜ | ⬜ |
 | 6 | Décodage vidéo (FFmpeg) | client | FFmpeg | 2 | ⬜ | ⬜ |
