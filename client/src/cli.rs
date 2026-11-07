@@ -53,6 +53,7 @@ pub fn validate_otg(
     has_record: bool,
     has_display: bool,
     has_new_display: bool,
+    has_v4l2: bool,
     no_audio: bool,
 ) -> Result<()> {
     if !otg {
@@ -63,6 +64,9 @@ pub fn validate_otg(
     }
     if has_display || has_new_display {
         bail!("--otg est incompatible avec --display / --new-display (pas de miroir en OTG)");
+    }
+    if has_v4l2 {
+        bail!("--otg est incompatible avec --v4l2-sink (pas de flux vidéo en OTG)");
     }
     let _ = no_audio; // l'audio est de toute façon désactivé en OTG
     Ok(())
@@ -181,6 +185,11 @@ pub struct Cli {
     #[arg(long, value_name = "FPS")]
     pub camera_fps: Option<u32>,
 
+    /// Exposer le flux comme webcam virtuelle via un périphérique V4L2 (Linux).
+    /// Ex. : --v4l2-sink /dev/video2
+    #[arg(long, value_name = "/dev/videoN")]
+    pub v4l2_sink: Option<String>,
+
     /// Verbosité (-v, -vv, -vvv).
     #[arg(short, long, action = clap::ArgAction::Count)]
     pub verbose: u8,
@@ -279,6 +288,14 @@ impl Cli {
         }
     }
 
+    /// Périphérique webcam virtuelle demandé, validé. `None` si non demandé.
+    pub fn v4l2_sink(&self) -> Result<Option<std::path::PathBuf>> {
+        match &self.v4l2_sink {
+            Some(dev) => Ok(Some(crate::media::v4l2::parse_device(dev)?)),
+            None => Ok(None),
+        }
+    }
+
     /// Valide la cohérence des options OTG. Erreur si incompatibles.
     pub fn check_otg(&self) -> Result<()> {
         validate_otg(
@@ -286,6 +303,7 @@ impl Cli {
             self.record.is_some(),
             self.display.is_some(),
             self.new_display.is_some(),
+            self.v4l2_sink.is_some(),
             self.no_audio,
         )
     }
@@ -345,19 +363,21 @@ mod tests {
     #[test]
     fn otg_sans_conflit_ok() {
         // Hors OTG : jamais d'erreur quels que soient les autres drapeaux.
-        assert!(validate_otg(false, true, true, true, false).is_ok());
+        assert!(validate_otg(false, true, true, true, true, false).is_ok());
         // OTG seul : ok.
-        assert!(validate_otg(true, false, false, false, true).is_ok());
+        assert!(validate_otg(true, false, false, false, false, true).is_ok());
     }
 
     #[test]
     fn otg_conflits_rejetes() {
         // OTG + record
-        assert!(validate_otg(true, true, false, false, false).is_err());
+        assert!(validate_otg(true, true, false, false, false, false).is_err());
         // OTG + display
-        assert!(validate_otg(true, false, true, false, false).is_err());
+        assert!(validate_otg(true, false, true, false, false, false).is_err());
         // OTG + new_display
-        assert!(validate_otg(true, false, false, true, false).is_err());
+        assert!(validate_otg(true, false, false, true, false, false).is_err());
+        // OTG + v4l2-sink
+        assert!(validate_otg(true, false, false, false, true, false).is_err());
     }
 
     #[test]

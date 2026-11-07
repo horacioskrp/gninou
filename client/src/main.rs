@@ -65,6 +65,18 @@ fn main() -> Result<()> {
         );
     }
 
+    // (#26) Webcam virtuelle V4L2 : valide le périphérique tôt (chemin + plateforme).
+    if let Some(dev) = args.v4l2_sink()? {
+        if media::v4l2::is_supported() {
+            log::info!("sortie webcam virtuelle : {}", dev.display());
+        } else {
+            log::warn!(
+                "--v4l2-sink {} demandé mais la webcam V4L2 n'est disponible que sous Linux",
+                dev.display()
+            );
+        }
+    }
+
     // (#24) Mode OTG : contrôle HID pur. Valide la cohérence des options tôt.
     args.check_otg()?;
     if args.otg {

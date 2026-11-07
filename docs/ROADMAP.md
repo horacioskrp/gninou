@@ -83,8 +83,8 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 ## Phase 9 — Caméra & webcam
 
 - [~] (#25) Miroir caméra (Android 12+) — options `--video-source camera` + `--camera-id/-facing/-size/-fps` (parsing client + `Options` serveur testés) ; capture Camera2 réelle à valider sur matériel
-- [ ] (#26) Webcam virtuelle (V4L2, Linux)
-- **Test de phase** : flux caméra affiché, périphérique V4L2 utilisable.
+- [~] (#26) Webcam virtuelle (V4L2, Linux) — option `--v4l2-sink /dev/videoN` (validation périphérique + garde plateforme testées) ; écriture V4L2 réelle derrière la feature `v4l2` (Linux)
+- **Test de phase** : flux caméra affiché, périphérique V4L2 utilisable — ⬜ à valider sur matériel/Linux (voir tests/e2e/25 et 26).
 
 ---
 
