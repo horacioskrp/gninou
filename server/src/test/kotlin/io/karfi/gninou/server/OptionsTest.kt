@@ -39,6 +39,24 @@ class OptionsTest {
     }
 
     @Test
+    fun source_camera() {
+        val o = Options.parse(
+            arrayOf("video_source=camera", "camera_facing=front", "camera_size=1280x720", "camera_fps=30"),
+        )
+        assertEquals("camera", o.videoSource)
+        assertEquals("front", o.cameraFacing)
+        assertEquals("1280x720", o.cameraSize)
+        assertEquals(30, o.cameraFps)
+    }
+
+    @Test
+    fun camera_par_id() {
+        val o = Options.parse(arrayOf("video_source=camera", "camera_id=2"))
+        assertEquals("camera", o.videoSource)
+        assertEquals("2", o.cameraId)
+    }
+
+    @Test
     fun combinaison_avec_autres_options() {
         val o = Options.parse(arrayOf("max_fps=30", "new_display=800x600", "audio=false"))
         assertEquals(30, o.maxFps)

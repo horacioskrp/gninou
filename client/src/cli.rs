@@ -5,6 +5,7 @@ use clap::Parser;
 
 use crate::device::Connection;
 use crate::geometry::{parse_rotation, Crop, NewDisplay};
+use crate::media::camera::{CameraConfig, VideoSource};
 
 /// Analyse un débit avec suffixe optionnel `K`/`M` (base 1000).
 /// Ex. : `"8M"` -> 8_000_000, `"1500K"` -> 1_500_000, `"4000000"` -> 4_000_000.
@@ -160,6 +161,26 @@ pub struct Cli {
     #[arg(long, default_value_t = false)]
     pub otg: bool,
 
+    /// Source vidéo : `display` (écran, défaut) ou `camera` (Android 12+).
+    #[arg(long, value_name = "SOURCE", default_value = "display")]
+    pub video_source: String,
+
+    /// Identifiant de caméra explicite (prioritaire sur --camera-facing).
+    #[arg(long, value_name = "ID")]
+    pub camera_id: Option<String>,
+
+    /// Orientation de la caméra : `back`, `front` ou `external`.
+    #[arg(long, value_name = "FACING")]
+    pub camera_facing: Option<String>,
+
+    /// Taille de capture caméra `LxH` (ex. 1280x720).
+    #[arg(long, value_name = "LxH")]
+    pub camera_size: Option<String>,
+
+    /// Images par seconde de la caméra.
+    #[arg(long, value_name = "FPS")]
+    pub camera_fps: Option<u32>,
+
     /// Verbosité (-v, -vv, -vvv).
     #[arg(short, long, action = clap::ArgAction::Count)]
     pub verbose: u8,
@@ -230,6 +251,19 @@ impl Cli {
         }
     }
 
+    /// Configuration caméra demandée, validée. `None` si la source est l'écran.
+    pub fn camera(&self) -> Result<Option<CameraConfig>> {
+        match VideoSource::parse(&self.video_source)? {
+            VideoSource::Display => Ok(None),
+            VideoSource::Camera => Ok(Some(CameraConfig::build(
+                self.camera_id.clone(),
+                self.camera_facing.as_deref(),
+                self.camera_size.as_deref(),
+                self.camera_fps,
+            )?)),
+        }
+    }
+
     /// Le clavier/souris HID sont-ils actifs ? (explicitement via `--hid`, ou
     /// implicitement en mode OTG).
     pub fn hid_enabled(&self) -> bool {
@@ -295,6 +329,10 @@ impl Cli {
         }
         if let Ok(Some(nd)) = self.new_display() {
             v.push(format!("new_display={}", nd.to_arg()));
+        }
+        // (#25) Source caméra : ajoute video_source=camera + réglages caméra.
+        if let Ok(Some(cam)) = self.camera() {
+            v.extend(cam.server_args());
         }
         v
     }

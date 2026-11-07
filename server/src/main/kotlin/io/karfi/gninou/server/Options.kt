@@ -20,6 +20,16 @@ data class Options(
     val newDisplay: Boolean = false,
     /** Spécification `LxH`, `LxH/dpi` ou vide (défauts) pour l'affichage virtuel. */
     val newDisplaySize: String = "",
+    /** Source vidéo : "display" (défaut) ou "camera". */
+    val videoSource: String = "display",
+    /** Identifiant de caméra explicite, ou vide. */
+    val cameraId: String = "",
+    /** Orientation caméra : "back"/"front"/"external", ou vide. */
+    val cameraFacing: String = "",
+    /** Taille de capture caméra `LxH`, ou vide (défauts). */
+    val cameraSize: String = "",
+    /** Images par seconde caméra ; 0 = défaut. */
+    val cameraFps: Int = 0,
 ) {
     companion object {
         fun parse(args: Array<String>): Options {
@@ -39,6 +49,11 @@ data class Options(
                     "video" -> opts.copy(video = value != "false")
                     "display_id" -> opts.copy(displayId = value.toIntOrNull() ?: 0)
                     "new_display" -> opts.copy(newDisplay = true, newDisplaySize = value)
+                    "video_source" -> opts.copy(videoSource = value.ifEmpty { "display" })
+                    "camera_id" -> opts.copy(cameraId = value)
+                    "camera_facing" -> opts.copy(cameraFacing = value)
+                    "camera_size" -> opts.copy(cameraSize = value)
+                    "camera_fps" -> opts.copy(cameraFps = value.toIntOrNull() ?: 0)
                     else -> opts
                 }
             }

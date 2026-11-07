@@ -54,6 +54,17 @@ fn main() -> Result<()> {
         log::info!("rotation demandée : {rotation}°");
     }
 
+    // (#25) Source vidéo : écran (défaut) ou caméra (Android 12+). Validation précoce.
+    if let Some(cam) = args.camera()? {
+        log::info!(
+            "source vidéo : caméra ({})",
+            cam.id
+                .clone()
+                .or_else(|| cam.facing.map(|f| f.as_str().to_string()))
+                .unwrap_or_else(|| "défaut".to_string())
+        );
+    }
+
     // (#24) Mode OTG : contrôle HID pur. Valide la cohérence des options tôt.
     args.check_otg()?;
     if args.otg {
