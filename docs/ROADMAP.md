@@ -91,7 +91,7 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 > Objectif : se connecter en Wi-Fi sans effort, en s'appuyant sur #16/#17.
 
 - [~] (#27) Wi-Fi automatique (USB → sans-fil) — `--wifi` : lecture d'IP (`parse_wlan_ipv4` testé) + `adb tcpip` + `adb connect` ; bascule réseau réelle à valider sur matériel
-- [ ] (#28) Découverte mDNS (Android 11+) — `--wifi-discover` via `adb mdns services`
+- [~] (#28) Découverte mDNS (Android 11+) — `--wifi-discover` : `adb mdns services` (parsing + filtrage des services connectables testés) ; découverte réseau réelle à valider sur matériel
 - **Test de phase** : connexion sans-fil sans saisir d'IP, depuis l'USB puis par découverte.
 
 ---
