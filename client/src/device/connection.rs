@@ -54,6 +54,61 @@ pub fn normalize_addr(addr: &str) -> Result<String> {
     Ok(format!("{host}:{port}"))
 }
 
+/// Extrait la première adresse IPv4 exploitable d'une sortie `ip addr`
+/// (`adb shell ip -f inet addr show wlan0`). Ignore `127.0.0.1`.
+/// Logique **pure et testable**.
+pub fn parse_wlan_ipv4(output: &str) -> Result<String> {
+    for line in output.lines() {
+        let line = line.trim();
+        let rest = match line.strip_prefix("inet ") {
+            Some(r) => r,
+            None => continue,
+        };
+        // `inet 192.168.1.42/24 brd ... scope global wlan0`
+        let addr = rest.split_whitespace().next().unwrap_or("");
+        let ip = addr.split('/').next().unwrap_or("");
+        if ip != "127.0.0.1" && ip.parse::<std::net::Ipv4Addr>().is_ok() {
+            return Ok(ip.to_string());
+        }
+    }
+    bail!("aucune adresse IPv4 Wi-Fi trouvée (l'appareil est-il connecté au Wi-Fi ?)");
+}
+
+/// Bascule un appareil **USB** en Wi-Fi et s'y connecte, sans IP à saisir :
+/// lit l'IP Wi-Fi de l'appareil, active le mode TCP/IP (`adb tcpip`), puis
+/// `adb connect ip:port`. Renvoie l'adresse réseau `ip:port`.
+pub fn switch_to_wifi(serial: &str, port: u16) -> Result<String> {
+    // 1. Lire l'IP Wi-Fi de l'appareil (interface wlan0).
+    let out = Command::new("adb")
+        .args([
+            "-s", serial, "shell", "ip", "-f", "inet", "addr", "show", "wlan0",
+        ])
+        .output()
+        .context("échec de la lecture de l'IP Wi-Fi (`adb shell ip addr`)")?;
+    anyhow::ensure!(
+        out.status.success(),
+        "`adb shell ip addr show wlan0` a échoué"
+    );
+    let ip = parse_wlan_ipv4(&String::from_utf8_lossy(&out.stdout))?;
+    log::info!("IP Wi-Fi de l'appareil : {ip}");
+
+    // 2. Basculer le démon adb de l'appareil en TCP/IP.
+    let st = Command::new("adb")
+        .args(["-s", serial, "tcpip", &port.to_string()])
+        .status()
+        .context("échec de `adb tcpip`")?;
+    anyhow::ensure!(st.success(), "`adb tcpip {port}` a échoué");
+
+    // 3. Se connecter en réseau (réutilise la logique TCP/IP de #16).
+    let target = format!("{ip}:{port}");
+    let st2 = Command::new("adb")
+        .args(["connect", &target])
+        .status()
+        .context("échec de `adb connect`")?;
+    anyhow::ensure!(st2.success(), "`adb connect {target}` a échoué");
+    Ok(target)
+}
+
 /// Longueur du code d'appairage Wi-Fi (Android 11+).
 pub const PAIR_CODE_LEN: usize = 6;
 
@@ -126,6 +181,27 @@ impl Connection {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn wlan_ipv4_extrait() {
+        let out = "3: wlan0: <BROADCAST,MULTICAST,UP,LOWER_UP>\n    \
+                   inet 192.168.1.42/24 brd 192.168.1.255 scope global wlan0\n       \
+                   valid_lft forever preferred_lft forever\n";
+        assert_eq!(parse_wlan_ipv4(out).unwrap(), "192.168.1.42");
+    }
+
+    #[test]
+    fn wlan_ipv4_ignore_loopback() {
+        let out = "1: lo\n    inet 127.0.0.1/8 scope host lo\n\
+                   3: wlan0\n    inet 10.0.0.7/24 scope global wlan0\n";
+        assert_eq!(parse_wlan_ipv4(out).unwrap(), "10.0.0.7");
+    }
+
+    #[test]
+    fn wlan_ipv4_absente_erreur() {
+        assert!(parse_wlan_ipv4("3: wlan0\n    (pas d'adresse)\n").is_err());
+        assert!(parse_wlan_ipv4("").is_err());
+    }
 
     #[test]
     fn addr_avec_port() {

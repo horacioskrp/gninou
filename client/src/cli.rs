@@ -100,6 +100,20 @@ pub struct Cli {
     #[arg(long, value_name = "CODE", requires = "pair")]
     pub pair_code: Option<String>,
 
+    /// Wi-Fi automatique : bascule un appareil branché en USB vers le sans-fil
+    /// (lit son IP, active adb tcpip, se connecte) sans saisir d'adresse.
+    #[arg(long, default_value_t = false, conflicts_with_all = ["tcpip", "pair", "all"])]
+    pub wifi: bool,
+
+    /// Port TCP utilisé par --wifi pour la bascule sans-fil.
+    #[arg(long, value_name = "PORT", default_value_t = 5555)]
+    pub wifi_port: u16,
+
+    /// Découverte mDNS : se connecter au premier appareil en « Débogage sans
+    /// fil » annoncé sur le réseau (Android 11+), sans câble ni IP.
+    #[arg(long, default_value_t = false, conflicts_with_all = ["tcpip", "pair", "wifi", "all"])]
+    pub wifi_discover: bool,
+
     /// Résolution maximale (bord le plus long, en pixels). 0 = illimité.
     #[arg(short = 'm', long, default_value_t = 0)]
     pub max_size: u32,
