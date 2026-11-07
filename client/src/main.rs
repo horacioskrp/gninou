@@ -54,6 +54,41 @@ fn main() -> Result<()> {
         log::info!("rotation demandée : {rotation}°");
     }
 
+    // (#25) Source vidéo : écran (défaut) ou caméra (Android 12+). Validation précoce.
+    if let Some(cam) = args.camera()? {
+        log::info!(
+            "source vidéo : caméra ({})",
+            cam.id
+                .clone()
+                .or_else(|| cam.facing.map(|f| f.as_str().to_string()))
+                .unwrap_or_else(|| "défaut".to_string())
+        );
+    }
+
+    // (#26) Webcam virtuelle V4L2 : valide le périphérique tôt (chemin + plateforme).
+    if let Some(dev) = args.v4l2_sink()? {
+        if media::v4l2::is_supported() {
+            log::info!("sortie webcam virtuelle : {}", dev.display());
+        } else {
+            log::warn!(
+                "--v4l2-sink {} demandé mais la webcam V4L2 n'est disponible que sous Linux",
+                dev.display()
+            );
+        }
+    }
+
+    // (#24) Mode OTG : contrôle HID pur. Valide la cohérence des options tôt.
+    args.check_otg()?;
+    if args.otg {
+        let plan = args.otg_plan();
+        log::info!(
+            "mode OTG : contrôle HID seul (clavier={}, souris={}, manette={}) — pas de miroir",
+            plan.keyboard,
+            plan.mouse,
+            plan.gamepad
+        );
+    }
+
     // (#21) Affichage ciblé / affichage virtuel (validation précoce).
     if let Some(id) = args.display {
         log::info!("affichage ciblé : #{id}");
@@ -154,8 +189,8 @@ fn main() -> Result<()> {
             let _channel = tunnel.accept()?;
             log::info!("[{}] connexion établie avec le serveur (handshake)", dev.serial);
 
-            // (#22) HID/UHID : créer clavier + souris simulés sur le canal contrôle.
-            if args.hid {
+            // (#22/#24) HID/UHID : créer clavier + souris simulés (explicite ou OTG).
+            if args.hid_enabled() {
                 use control::hid;
                 let kbd = protocol::ControlMessage::UhidCreate {
                     id: hid::KEYBOARD_ID,
@@ -174,6 +209,22 @@ fn main() -> Result<()> {
                     mouse.encode().len()
                 );
                 // TODO (#8-10) : émettre kbd/mouse puis les UhidInput au fil des entrées.
+            }
+
+            // (#23) Manette : périphérique HID supplémentaire via le même transport UHID.
+            if args.gamepad {
+                use control::gamepad;
+                let pad = protocol::ControlMessage::UhidCreate {
+                    id: gamepad::GAMEPAD_ID,
+                    report_desc: gamepad::GAMEPAD_REPORT_DESC.to_vec(),
+                };
+                log::info!(
+                    "[{}] manette activée (#{}, {} o de descripteur) prête à créer",
+                    dev.serial,
+                    gamepad::GAMEPAD_ID,
+                    pad.encode().len()
+                );
+                // TODO (#8-10) : émettre `pad` puis les UhidInput (GamepadState::report).
             }
 
             // (#20) Écran éteint : message de contrôle prêt à émettre sur le canal.

@@ -76,15 +76,15 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 ## Phase 8 — HID, manette & OTG
 
 - [~] (#22) Clavier/souris physiques simulés (HID/UHID) — option `--hid`, descripteurs + rapports clavier/souris et messages UHID (encode client + decode serveur testés) ; création `/dev/uhid` à valider sur matériel
-- [ ] (#23) Manette (gamepad)
-- [ ] (#24) Mode OTG
-- **Test de phase** : contrôle HID et manette reconnus par l'appareil.
+- [~] (#23) Manette (gamepad) — option `--gamepad`, descripteur + `GamepadState::report` testés ; réutilise le transport UHID (#22) ; manette réelle à valider sur matériel
+- [~] (#24) Mode OTG — option `--otg` (contrôle HID seul, validation des conflits + `server_args` control-only testés) ; contrôle réel à valider sur matériel
+- **Test de phase** : contrôle HID et manette reconnus par l'appareil — ⬜ à valider sur matériel (voir tests/e2e/22, 23 et 24).
 
 ## Phase 9 — Caméra & webcam
 
-- [ ] (#25) Miroir caméra (Android 12+)
-- [ ] (#26) Webcam virtuelle (V4L2, Linux)
-- **Test de phase** : flux caméra affiché, périphérique V4L2 utilisable.
+- [~] (#25) Miroir caméra (Android 12+) — options `--video-source camera` + `--camera-id/-facing/-size/-fps` (parsing client + `Options` serveur testés) ; capture Camera2 réelle à valider sur matériel
+- [~] (#26) Webcam virtuelle (V4L2, Linux) — option `--v4l2-sink /dev/videoN` (validation périphérique + garde plateforme testées) ; écriture V4L2 réelle derrière la feature `v4l2` (Linux)
+- **Test de phase** : flux caméra affiché, périphérique V4L2 utilisable — ⬜ à valider sur matériel/Linux (voir tests/e2e/25 et 26).
 
 ---
 

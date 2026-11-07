@@ -36,10 +36,10 @@ puis fusionnée dans `develop` (voir [GITFLOW.md](GITFLOW.md)).
 | 20 | Affichage écran éteint | client+serveur | — | 7 | 🟨 | ✅ (protocole) |
 | 21 | Écran virtuel / nouvel affichage | client+serveur | Android 10+ | 7 | 🟨 | ✅ (options) |
 | 22 | Clavier/souris physiques simulés (HID/UHID) | client+serveur | — | 8 | 🟨 | ✅ (descripteurs/protocole) |
-| 23 | Manette (gamepad) | client+serveur | — | 8 | ⬜ | ⬜ |
-| 24 | Mode OTG (contrôle sans miroir) | client | — | 8 | ⬜ | ⬜ |
-| 25 | Miroir caméra | client+serveur | Android 12+ | 9 | ⬜ | ⬜ |
-| 26 | Webcam virtuelle (V4L2) | client | Linux | 9 | ⬜ | ⬜ |
+| 23 | Manette (gamepad) | client+serveur | — | 8 | 🟨 | ✅ (descripteur/rapport) |
+| 24 | Mode OTG (contrôle sans miroir) | client | — | 8 | 🟨 | ✅ (options) |
+| 25 | Miroir caméra | client+serveur | Android 12+ | 9 | 🟨 | ✅ (options) |
+| 26 | Webcam virtuelle (V4L2) | client | Linux | 9 | 🟨 | ✅ (périphérique) |
 
 > Ce tableau est mis à jour à chaque fusion d'une `feature/*` : on coche l'état et
 > la colonne « Testé » uniquement quand le test de la fonctionnalité est vert.

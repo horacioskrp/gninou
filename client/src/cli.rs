@@ -5,6 +5,7 @@ use clap::Parser;
 
 use crate::device::Connection;
 use crate::geometry::{parse_rotation, Crop, NewDisplay};
+use crate::media::camera::{CameraConfig, VideoSource};
 
 /// Analyse un débit avec suffixe optionnel `K`/`M` (base 1000).
 /// Ex. : `"8M"` -> 8_000_000, `"1500K"` -> 1_500_000, `"4000000"` -> 4_000_000.
@@ -28,6 +29,47 @@ pub fn parse_bitrate(s: &str) -> Result<u32> {
         .filter(|v| *v <= u32::MAX as u64)
         .ok_or_else(|| anyhow::anyhow!("débit hors limites : « {s} »"))?;
     Ok(value as u32)
+}
+
+/// Périphériques HID à exposer en mode OTG. Logique **pure et testable**.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OtgPlan {
+    pub keyboard: bool,
+    pub mouse: bool,
+    pub gamepad: bool,
+}
+
+impl OtgPlan {
+    /// Au moins un périphérique est demandé.
+    pub fn any(&self) -> bool {
+        self.keyboard || self.mouse || self.gamepad
+    }
+}
+
+/// Valide la cohérence des options en mode OTG (aucun flux média).
+/// Logique **pure et testable**.
+pub fn validate_otg(
+    otg: bool,
+    has_record: bool,
+    has_display: bool,
+    has_new_display: bool,
+    has_v4l2: bool,
+    no_audio: bool,
+) -> Result<()> {
+    if !otg {
+        return Ok(());
+    }
+    if has_record {
+        bail!("--otg est incompatible avec --record (pas de flux vidéo en OTG)");
+    }
+    if has_display || has_new_display {
+        bail!("--otg est incompatible avec --display / --new-display (pas de miroir en OTG)");
+    }
+    if has_v4l2 {
+        bail!("--otg est incompatible avec --v4l2-sink (pas de flux vidéo en OTG)");
+    }
+    let _ = no_audio; // l'audio est de toute façon désactivé en OTG
+    Ok(())
 }
 
 /// Afficher et contrôler un appareil Android depuis le bureau.
@@ -115,6 +157,39 @@ pub struct Cli {
     #[arg(long, default_value_t = false)]
     pub hid: bool,
 
+    /// Exposer une manette (gamepad) HID à l'appareil et y mapper le contrôleur du PC.
+    #[arg(long, default_value_t = false)]
+    pub gamepad: bool,
+
+    /// Mode OTG : contrôle HID pur (clavier/souris/manette), sans miroir ni audio.
+    #[arg(long, default_value_t = false)]
+    pub otg: bool,
+
+    /// Source vidéo : `display` (écran, défaut) ou `camera` (Android 12+).
+    #[arg(long, value_name = "SOURCE", default_value = "display")]
+    pub video_source: String,
+
+    /// Identifiant de caméra explicite (prioritaire sur --camera-facing).
+    #[arg(long, value_name = "ID")]
+    pub camera_id: Option<String>,
+
+    /// Orientation de la caméra : `back`, `front` ou `external`.
+    #[arg(long, value_name = "FACING")]
+    pub camera_facing: Option<String>,
+
+    /// Taille de capture caméra `LxH` (ex. 1280x720).
+    #[arg(long, value_name = "LxH")]
+    pub camera_size: Option<String>,
+
+    /// Images par seconde de la caméra.
+    #[arg(long, value_name = "FPS")]
+    pub camera_fps: Option<u32>,
+
+    /// Exposer le flux comme webcam virtuelle via un périphérique V4L2 (Linux).
+    /// Ex. : --v4l2-sink /dev/video2
+    #[arg(long, value_name = "/dev/videoN")]
+    pub v4l2_sink: Option<String>,
+
     /// Verbosité (-v, -vv, -vvv).
     #[arg(short, long, action = clap::ArgAction::Count)]
     pub verbose: u8,
@@ -185,8 +260,60 @@ impl Cli {
         }
     }
 
+    /// Configuration caméra demandée, validée. `None` si la source est l'écran.
+    pub fn camera(&self) -> Result<Option<CameraConfig>> {
+        match VideoSource::parse(&self.video_source)? {
+            VideoSource::Display => Ok(None),
+            VideoSource::Camera => Ok(Some(CameraConfig::build(
+                self.camera_id.clone(),
+                self.camera_facing.as_deref(),
+                self.camera_size.as_deref(),
+                self.camera_fps,
+            )?)),
+        }
+    }
+
+    /// Le clavier/souris HID sont-ils actifs ? (explicitement via `--hid`, ou
+    /// implicitement en mode OTG).
+    pub fn hid_enabled(&self) -> bool {
+        self.hid || self.otg
+    }
+
+    /// Plan des périphériques HID à créer en mode OTG.
+    pub fn otg_plan(&self) -> OtgPlan {
+        OtgPlan {
+            keyboard: true,
+            mouse: true,
+            gamepad: self.gamepad,
+        }
+    }
+
+    /// Périphérique webcam virtuelle demandé, validé. `None` si non demandé.
+    pub fn v4l2_sink(&self) -> Result<Option<std::path::PathBuf>> {
+        match &self.v4l2_sink {
+            Some(dev) => Ok(Some(crate::media::v4l2::parse_device(dev)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// Valide la cohérence des options OTG. Erreur si incompatibles.
+    pub fn check_otg(&self) -> Result<()> {
+        validate_otg(
+            self.otg,
+            self.record.is_some(),
+            self.display.is_some(),
+            self.new_display.is_some(),
+            self.v4l2_sink.is_some(),
+            self.no_audio,
+        )
+    }
+
     /// Arguments transmis au serveur embarqué (format `clé=valeur`).
     pub fn server_args(&self) -> Vec<String> {
+        // (#24) En OTG : contrôle seul, ni vidéo ni audio.
+        if self.otg {
+            return vec!["video=false".to_string(), "audio=false".to_string()];
+        }
         let mut v = Vec::new();
         if self.max_size > 0 {
             v.push(format!("max_size={}", self.max_size));
@@ -221,13 +348,37 @@ impl Cli {
         if let Ok(Some(nd)) = self.new_display() {
             v.push(format!("new_display={}", nd.to_arg()));
         }
+        // (#25) Source caméra : ajoute video_source=camera + réglages caméra.
+        if let Ok(Some(cam)) = self.camera() {
+            v.extend(cam.server_args());
+        }
         v
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::parse_bitrate;
+    use super::{parse_bitrate, validate_otg};
+
+    #[test]
+    fn otg_sans_conflit_ok() {
+        // Hors OTG : jamais d'erreur quels que soient les autres drapeaux.
+        assert!(validate_otg(false, true, true, true, true, false).is_ok());
+        // OTG seul : ok.
+        assert!(validate_otg(true, false, false, false, false, true).is_ok());
+    }
+
+    #[test]
+    fn otg_conflits_rejetes() {
+        // OTG + record
+        assert!(validate_otg(true, true, false, false, false, false).is_err());
+        // OTG + display
+        assert!(validate_otg(true, false, true, false, false, false).is_err());
+        // OTG + new_display
+        assert!(validate_otg(true, false, false, true, false, false).is_err());
+        // OTG + v4l2-sink
+        assert!(validate_otg(true, false, false, false, true, false).is_err());
+    }
 
     #[test]
     fn bitrate_entier_nu() {
