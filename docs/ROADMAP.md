@@ -75,7 +75,7 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 
 ## Phase 8 — HID, manette & OTG
 
-- [ ] (#22) Clavier/souris physiques simulés (HID/UHID)
+- [~] (#22) Clavier/souris physiques simulés (HID/UHID) — option `--hid`, descripteurs + rapports clavier/souris et messages UHID (encode client + decode serveur testés) ; création `/dev/uhid` à valider sur matériel
 - [ ] (#23) Manette (gamepad)
 - [ ] (#24) Mode OTG
 - **Test de phase** : contrôle HID et manette reconnus par l'appareil.

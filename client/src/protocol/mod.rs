@@ -27,6 +27,9 @@ pub mod control_type {
     pub const SCROLL: u8 = 2;
     pub const SET_CLIPBOARD: u8 = 3;
     pub const SET_SCREEN_POWER_MODE: u8 = 4;
+    pub const UHID_CREATE: u8 = 5;
+    pub const UHID_INPUT: u8 = 6;
+    pub const UHID_DESTROY: u8 = 7;
 }
 
 /// Modes d'alimentation de l'écran de l'appareil (valeurs `SurfaceControl`).
@@ -50,6 +53,12 @@ pub enum ControlMessage {
     SetClipboard { text: String },
     /// Régler l'alimentation de l'écran de l'appareil (voir [`screen_power`]).
     SetScreenPowerMode { mode: u8 },
+    /// Créer un périphérique HID virtuel (clavier/souris) via UHID.
+    UhidCreate { id: u16, report_desc: Vec<u8> },
+    /// Envoyer un rapport d'entrée HID au périphérique `id`.
+    UhidInput { id: u16, data: Vec<u8> },
+    /// Détruire le périphérique HID `id`.
+    UhidDestroy { id: u16 },
 }
 
 impl ControlMessage {
@@ -86,6 +95,22 @@ impl ControlMessage {
             ControlMessage::SetScreenPowerMode { mode } => {
                 out.push(control_type::SET_SCREEN_POWER_MODE);
                 out.push(*mode);
+            }
+            ControlMessage::UhidCreate { id, report_desc } => {
+                out.push(control_type::UHID_CREATE);
+                out.extend_from_slice(&id.to_be_bytes());
+                out.extend_from_slice(&(report_desc.len() as u16).to_be_bytes());
+                out.extend_from_slice(report_desc);
+            }
+            ControlMessage::UhidInput { id, data } => {
+                out.push(control_type::UHID_INPUT);
+                out.extend_from_slice(&id.to_be_bytes());
+                out.extend_from_slice(&(data.len() as u16).to_be_bytes());
+                out.extend_from_slice(data);
+            }
+            ControlMessage::UhidDestroy { id } => {
+                out.push(control_type::UHID_DESTROY);
+                out.extend_from_slice(&id.to_be_bytes());
             }
         }
         out
@@ -193,5 +218,28 @@ mod tests {
         assert_eq!(off.encode(), vec![control_type::SET_SCREEN_POWER_MODE, 0]);
         let on = ControlMessage::SetScreenPowerMode { mode: screen_power::NORMAL };
         assert_eq!(on.encode(), vec![control_type::SET_SCREEN_POWER_MODE, 2]);
+    }
+
+    #[test]
+    fn encode_uhid_create() {
+        let msg = ControlMessage::UhidCreate { id: 1, report_desc: vec![0xAB, 0xCD] };
+        assert_eq!(
+            msg.encode(),
+            vec![control_type::UHID_CREATE, 0, 1, 0, 2, 0xAB, 0xCD]
+        );
+    }
+
+    #[test]
+    fn encode_uhid_input() {
+        let msg = ControlMessage::UhidInput { id: 2, data: vec![0, 0, 0x04, 0, 0, 0, 0, 0] };
+        let bytes = msg.encode();
+        assert_eq!(&bytes[0..5], &[control_type::UHID_INPUT, 0, 2, 0, 8]);
+        assert_eq!(bytes.len(), 5 + 8);
+    }
+
+    #[test]
+    fn encode_uhid_destroy() {
+        let msg = ControlMessage::UhidDestroy { id: 2 };
+        assert_eq!(msg.encode(), vec![control_type::UHID_DESTROY, 0, 2]);
     }
 }

@@ -154,6 +154,28 @@ fn main() -> Result<()> {
             let _channel = tunnel.accept()?;
             log::info!("[{}] connexion établie avec le serveur (handshake)", dev.serial);
 
+            // (#22) HID/UHID : créer clavier + souris simulés sur le canal contrôle.
+            if args.hid {
+                use control::hid;
+                let kbd = protocol::ControlMessage::UhidCreate {
+                    id: hid::KEYBOARD_ID,
+                    report_desc: hid::KEYBOARD_REPORT_DESC.to_vec(),
+                };
+                let mouse = protocol::ControlMessage::UhidCreate {
+                    id: hid::MOUSE_ID,
+                    report_desc: hid::MOUSE_REPORT_DESC.to_vec(),
+                };
+                log::info!(
+                    "[{}] HID activé : clavier (#{}, {} o) + souris (#{}, {} o) prêts à créer",
+                    dev.serial,
+                    hid::KEYBOARD_ID,
+                    kbd.encode().len(),
+                    hid::MOUSE_ID,
+                    mouse.encode().len()
+                );
+                // TODO (#8-10) : émettre kbd/mouse puis les UhidInput au fil des entrées.
+            }
+
             // (#20) Écran éteint : message de contrôle prêt à émettre sur le canal.
             if args.turn_screen_off {
                 let msg = protocol::ControlMessage::SetScreenPowerMode {
