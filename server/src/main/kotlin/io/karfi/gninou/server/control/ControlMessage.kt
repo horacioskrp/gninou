@@ -16,6 +16,9 @@ sealed interface ControlMessage {
     data class Scroll(val x: Int, val y: Int, val h: Int, val v: Int) : ControlMessage
     data class SetClipboard(val text: String) : ControlMessage
     data class SetScreenPowerMode(val mode: Int) : ControlMessage
+    data class UhidCreate(val id: Int, val reportDesc: ByteArray) : ControlMessage
+    data class UhidInput(val id: Int, val data: ByteArray) : ControlMessage
+    data class UhidDestroy(val id: Int) : ControlMessage
 
     companion object {
         const val TYPE_KEY = 0
@@ -23,6 +26,9 @@ sealed interface ControlMessage {
         const val TYPE_SCROLL = 2
         const val TYPE_SET_CLIPBOARD = 3
         const val TYPE_SET_SCREEN_POWER_MODE = 4
+        const val TYPE_UHID_CREATE = 5
+        const val TYPE_UHID_INPUT = 6
+        const val TYPE_UHID_DESTROY = 7
 
         /** Modes d'alimentation de l'écran (valeurs SurfaceControl). */
         const val POWER_MODE_OFF = 0
@@ -47,6 +53,21 @@ sealed interface ControlMessage {
                     SetClipboard(String(bytes, Charsets.UTF_8))
                 }
                 TYPE_SET_SCREEN_POWER_MODE -> SetScreenPowerMode(input.readUnsignedByte())
+                TYPE_UHID_CREATE -> {
+                    val id = input.readUnsignedShort()
+                    val len = input.readUnsignedShort()
+                    val desc = ByteArray(len)
+                    input.readFully(desc)
+                    UhidCreate(id, desc)
+                }
+                TYPE_UHID_INPUT -> {
+                    val id = input.readUnsignedShort()
+                    val len = input.readUnsignedShort()
+                    val data = ByteArray(len)
+                    input.readFully(data)
+                    UhidInput(id, data)
+                }
+                TYPE_UHID_DESTROY -> UhidDestroy(input.readUnsignedShort())
                 else -> throw IllegalArgumentException("type de message inconnu : $tag")
             }
         }

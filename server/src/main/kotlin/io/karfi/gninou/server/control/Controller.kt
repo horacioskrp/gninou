@@ -11,7 +11,10 @@ import java.io.InputStream
  * Lit les [ControlMessage] du canal contrôle (désérialisation testée), les
  * reconstruit en `KeyEvent`/`MotionEvent` et les injecte via [EventInjector].
  */
-class Controller(private val injector: EventInjector = EventInjector()) {
+class Controller(
+    private val injector: EventInjector = EventInjector(),
+    private val uhid: UhidManager = UhidManager(),
+) {
 
     @Volatile
     private var running = false
@@ -50,6 +53,15 @@ class Controller(private val injector: EventInjector = EventInjector()) {
             is ControlMessage.SetScreenPowerMode -> {
                 Log.i("écran -> mode d'alimentation ${msg.mode}")
                 ScreenPower.setMode(msg.mode)
+            }
+            is ControlMessage.UhidCreate -> {
+                Log.i("UHID création #${msg.id} (${msg.reportDesc.size} octets de descripteur)")
+                uhid.create(msg.id, msg.reportDesc)
+            }
+            is ControlMessage.UhidInput -> uhid.input(msg.id, msg.data)
+            is ControlMessage.UhidDestroy -> {
+                Log.i("UHID destruction #${msg.id}")
+                uhid.destroy(msg.id)
             }
         }
     }

@@ -111,6 +111,10 @@ pub struct Cli {
     #[arg(long, value_name = "LxH[/dpi]", num_args = 0..=1, default_missing_value = "")]
     pub new_display: Option<String>,
 
+    /// Simuler un clavier/souris physiques (HID/UHID) au lieu de l'injection logicielle.
+    #[arg(long, default_value_t = false)]
+    pub hid: bool,
+
     /// Verbosité (-v, -vv, -vvv).
     #[arg(short, long, action = clap::ArgAction::Count)]
     pub verbose: u8,
