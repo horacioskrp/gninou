@@ -46,6 +46,68 @@ impl Crop {
     }
 }
 
+/// Spécification d'un nouvel affichage virtuel (#21, Android 10+).
+///
+/// Taille et densité sont optionnelles : absentes, le serveur retient les
+/// valeurs par défaut de l'appareil. Parsing **pur et testable**.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct NewDisplay {
+    /// `(largeur, hauteur)` en pixels, ou `None` (défaut appareil).
+    pub size: Option<(u32, u32)>,
+    /// Densité en dpi, ou `None` (défaut appareil).
+    pub dpi: Option<u32>,
+}
+
+impl NewDisplay {
+    /// Analyse une spécification `LxH`, `LxH/dpi`, ou vide (défauts).
+    /// Ex. : `1920x1080`, `1920x1080/420`, `` (vide).
+    pub fn parse(s: &str) -> Result<NewDisplay> {
+        let s = s.trim();
+        if s.is_empty() {
+            return Ok(NewDisplay::default());
+        }
+        let (size_part, dpi) = match s.split_once('/') {
+            Some((sz, d)) => {
+                let dpi: u32 = d
+                    .trim()
+                    .parse()
+                    .map_err(|_| anyhow::anyhow!("dpi invalide : « {d} »"))?;
+                if dpi == 0 {
+                    bail!("le dpi doit être strictement positif");
+                }
+                (sz, Some(dpi))
+            }
+            None => (s, None),
+        };
+        let size_lc = size_part.to_ascii_lowercase();
+        let (w, h) = size_lc
+            .split_once('x')
+            .ok_or_else(|| anyhow::anyhow!("taille attendue « LxH », reçu « {size_part} »"))?;
+        let w: u32 = w
+            .trim()
+            .parse()
+            .map_err(|_| anyhow::anyhow!("largeur invalide : « {w} »"))?;
+        let h: u32 = h
+            .trim()
+            .parse()
+            .map_err(|_| anyhow::anyhow!("hauteur invalide : « {h} »"))?;
+        if w == 0 || h == 0 {
+            bail!("l'affichage virtuel doit avoir des dimensions non nulles");
+        }
+        Ok(NewDisplay { size: Some((w, h)), dpi })
+    }
+
+    /// Représentation transmise au serveur (`LxH`, `LxH/dpi`, `/dpi` ou vide).
+    pub fn to_arg(&self) -> String {
+        match (self.size, self.dpi) {
+            (Some((w, h)), Some(d)) => format!("{w}x{h}/{d}"),
+            (Some((w, h)), None) => format!("{w}x{h}"),
+            (None, Some(d)) => format!("/{d}"),
+            (None, None) => String::new(),
+        }
+    }
+}
+
 /// Analyse une rotation en degrés ; seules 0/90/180/270 sont acceptées.
 pub fn parse_rotation(s: &str) -> Result<u16> {
     match s.trim() {
@@ -98,5 +160,37 @@ mod tests {
         assert_eq!(parse_rotation("0").unwrap(), 0);
         assert!(parse_rotation("45").is_err());
         assert!(parse_rotation("360").is_err());
+    }
+
+    #[test]
+    fn new_display_vide_defauts() {
+        let d = NewDisplay::parse("").unwrap();
+        assert_eq!(d, NewDisplay { size: None, dpi: None });
+        assert_eq!(d.to_arg(), "");
+    }
+
+    #[test]
+    fn new_display_taille_seule() {
+        let d = NewDisplay::parse("1920x1080").unwrap();
+        assert_eq!(d, NewDisplay { size: Some((1920, 1080)), dpi: None });
+        assert_eq!(d.to_arg(), "1920x1080");
+        // Casse du « x » insensible.
+        assert_eq!(NewDisplay::parse("800X600").unwrap().size, Some((800, 600)));
+    }
+
+    #[test]
+    fn new_display_taille_et_dpi() {
+        let d = NewDisplay::parse("1080x2400/420").unwrap();
+        assert_eq!(d, NewDisplay { size: Some((1080, 2400)), dpi: Some(420) });
+        assert_eq!(d.to_arg(), "1080x2400/420");
+    }
+
+    #[test]
+    fn new_display_invalide() {
+        assert!(NewDisplay::parse("1920").is_err()); // pas de 'x'
+        assert!(NewDisplay::parse("0x1080").is_err()); // dimension nulle
+        assert!(NewDisplay::parse("1920xABC").is_err()); // hauteur non num
+        assert!(NewDisplay::parse("1920x1080/0").is_err()); // dpi nul
+        assert!(NewDisplay::parse("1920x1080/xx").is_err()); // dpi non num
     }
 }

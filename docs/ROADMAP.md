@@ -70,8 +70,8 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 
 - [~] (#19) Enregistrement (mp4/mkv) — option `--record`, choix conteneur par extension + compat codec testés ; multiplexage réel derrière la feature `ffmpeg`
 - [~] (#20) Affichage écran éteint — option `--turn-screen-off`, message `SetScreenPowerMode` (encode client + decode serveur testés, mêmes octets) ; extinction réelle via `SurfaceControl` à valider sur matériel
-- [ ] (#21) Écran virtuel / nouvel affichage
-- **Test de phase** : fichier enregistré lisible, display virtuel fonctionnel.
+- [~] (#21) Écran virtuel / nouvel affichage — options `--display` / `--new-display` (parsing `LxH[/dpi]` client + `Options` serveur testés) ; création réelle du display virtuel à valider sur matériel
+- **Test de phase** : fichier enregistré lisible, display virtuel fonctionnel — ⬜ à valider sur matériel (voir tests/e2e/19 et 21).
 
 ## Phase 8 — HID, manette & OTG
 

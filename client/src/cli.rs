@@ -4,7 +4,7 @@ use anyhow::{bail, Result};
 use clap::Parser;
 
 use crate::device::Connection;
-use crate::geometry::{parse_rotation, Crop};
+use crate::geometry::{parse_rotation, Crop, NewDisplay};
 
 /// Analyse un débit avec suffixe optionnel `K`/`M` (base 1000).
 /// Ex. : `"8M"` -> 8_000_000, `"1500K"` -> 1_500_000, `"4000000"` -> 4_000_000.
@@ -102,6 +102,15 @@ pub struct Cli {
     #[arg(long, default_value_t = false)]
     pub turn_screen_off: bool,
 
+    /// Refléter un affichage existant par son identifiant (0 = écran principal).
+    #[arg(long, value_name = "ID", conflicts_with = "new_display")]
+    pub display: Option<u32>,
+
+    /// Créer un nouvel affichage virtuel (Android 10+). Taille optionnelle
+    /// `LxH` ou `LxH/dpi` (ex. 1920x1080/420) ; sinon défauts de l'appareil.
+    #[arg(long, value_name = "LxH[/dpi]", num_args = 0..=1, default_missing_value = "")]
+    pub new_display: Option<String>,
+
     /// Verbosité (-v, -vv, -vvv).
     #[arg(short, long, action = clap::ArgAction::Count)]
     pub verbose: u8,
@@ -164,6 +173,14 @@ impl Cli {
         parse_rotation(&self.rotation)
     }
 
+    /// Spécification d'affichage virtuel demandée, validée. `None` si non demandé.
+    pub fn new_display(&self) -> Result<Option<NewDisplay>> {
+        match &self.new_display {
+            Some(spec) => Ok(Some(NewDisplay::parse(spec)?)),
+            None => Ok(None),
+        }
+    }
+
     /// Arguments transmis au serveur embarqué (format `clé=valeur`).
     pub fn server_args(&self) -> Vec<String> {
         let mut v = Vec::new();
@@ -192,6 +209,13 @@ impl Cli {
         }
         if self.no_video {
             v.push("video=false".to_string());
+        }
+        // (#21) Sélection d'affichage / affichage virtuel.
+        if let Some(id) = self.display {
+            v.push(format!("display_id={id}"));
+        }
+        if let Ok(Some(nd)) = self.new_display() {
+            v.push(format!("new_display={}", nd.to_arg()));
         }
         v
     }
