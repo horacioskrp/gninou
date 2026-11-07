@@ -131,7 +131,11 @@ mod tests {
         let msg = pointer(250, 250, button::PRIMARY, (0, 0, 500, 500), 1000, 1000);
         assert_eq!(
             msg,
-            Some(ControlMessage::Pointer { x: 500, y: 500, buttons: button::PRIMARY })
+            Some(ControlMessage::Pointer {
+                x: 500,
+                y: 500,
+                buttons: button::PRIMARY
+            })
         );
     }
 

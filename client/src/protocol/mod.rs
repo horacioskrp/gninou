@@ -132,7 +132,9 @@ pub enum DeviceMessage {
 impl DeviceMessage {
     /// Décode un message appareil→client (miroir de l'encodage serveur).
     pub fn decode(data: &[u8]) -> Result<DeviceMessage> {
-        let tag = *data.first().ok_or_else(|| anyhow::anyhow!("message vide"))?;
+        let tag = *data
+            .first()
+            .ok_or_else(|| anyhow::anyhow!("message vide"))?;
         match tag {
             device_type::CLIPBOARD => {
                 if data.len() < 5 {
@@ -177,27 +179,48 @@ mod tests {
 
     #[test]
     fn encode_pointer() {
-        let msg = ControlMessage::Pointer { x: 1, y: 2, buttons: 1 };
+        let msg = ControlMessage::Pointer {
+            x: 1,
+            y: 2,
+            buttons: 1,
+        };
         assert_eq!(
             msg.encode(),
             vec![
                 control_type::POINTER,
-                0, 0, 0, 1, // x
-                0, 0, 0, 2, // y
-                0, 0, 0, 1, // buttons
+                0,
+                0,
+                0,
+                1, // x
+                0,
+                0,
+                0,
+                2, // y
+                0,
+                0,
+                0,
+                1, // buttons
             ]
         );
     }
 
     #[test]
     fn encode_key() {
-        let msg = ControlMessage::Key { keycode: 0x41, pressed: true };
+        let msg = ControlMessage::Key {
+            keycode: 0x41,
+            pressed: true,
+        };
         assert_eq!(msg.encode(), vec![control_type::KEY, 0, 0, 0, 0x41, 1]);
     }
 
     #[test]
     fn encode_scroll_longueur() {
-        let msg = ControlMessage::Scroll { x: 0, y: 0, h: 0, v: -1 };
+        let msg = ControlMessage::Scroll {
+            x: 0,
+            y: 0,
+            h: 0,
+            v: -1,
+        };
         // tag(1) + 4 i32 (16) = 17 octets
         assert_eq!(msg.encode().len(), 17);
         assert_eq!(msg.encode()[0], control_type::SCROLL);
@@ -214,15 +237,22 @@ mod tests {
 
     #[test]
     fn encode_screen_power_off_et_normal() {
-        let off = ControlMessage::SetScreenPowerMode { mode: screen_power::OFF };
+        let off = ControlMessage::SetScreenPowerMode {
+            mode: screen_power::OFF,
+        };
         assert_eq!(off.encode(), vec![control_type::SET_SCREEN_POWER_MODE, 0]);
-        let on = ControlMessage::SetScreenPowerMode { mode: screen_power::NORMAL };
+        let on = ControlMessage::SetScreenPowerMode {
+            mode: screen_power::NORMAL,
+        };
         assert_eq!(on.encode(), vec![control_type::SET_SCREEN_POWER_MODE, 2]);
     }
 
     #[test]
     fn encode_uhid_create() {
-        let msg = ControlMessage::UhidCreate { id: 1, report_desc: vec![0xAB, 0xCD] };
+        let msg = ControlMessage::UhidCreate {
+            id: 1,
+            report_desc: vec![0xAB, 0xCD],
+        };
         assert_eq!(
             msg.encode(),
             vec![control_type::UHID_CREATE, 0, 1, 0, 2, 0xAB, 0xCD]
@@ -231,7 +261,10 @@ mod tests {
 
     #[test]
     fn encode_uhid_input() {
-        let msg = ControlMessage::UhidInput { id: 2, data: vec![0, 0, 0x04, 0, 0, 0, 0, 0] };
+        let msg = ControlMessage::UhidInput {
+            id: 2,
+            data: vec![0, 0, 0x04, 0, 0, 0, 0, 0],
+        };
         let bytes = msg.encode();
         assert_eq!(&bytes[0..5], &[control_type::UHID_INPUT, 0, 2, 0, 8]);
         assert_eq!(bytes.len(), 5 + 8);

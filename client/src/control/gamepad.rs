@@ -159,7 +159,17 @@ mod tests {
         let r = GamepadState::default().report();
         assert_eq!(
             r,
-            [0, 0, hat::NEUTRAL, AXIS_CENTER, AXIS_CENTER, AXIS_CENTER, AXIS_CENTER, 0, 0]
+            [
+                0,
+                0,
+                hat::NEUTRAL,
+                AXIS_CENTER,
+                AXIS_CENTER,
+                AXIS_CENTER,
+                AXIS_CENTER,
+                0,
+                0
+            ]
         );
         assert_eq!(r.len(), GAMEPAD_REPORT_LEN);
     }
@@ -167,7 +177,10 @@ mod tests {
     #[test]
     fn boutons_little_endian() {
         // SOUTH (bit 0) + START (bit 9) -> 0x0201 -> [0x01, 0x02]
-        let st = GamepadState { buttons: button::SOUTH | button::START, ..Default::default() };
+        let st = GamepadState {
+            buttons: button::SOUTH | button::START,
+            ..Default::default()
+        };
         let r = st.report();
         assert_eq!(r[0], 0x01);
         assert_eq!(r[1], 0x02);
@@ -191,7 +204,10 @@ mod tests {
     #[test]
     fn hat_masque_sur_4_bits() {
         // Une valeur hat > 0x0F est tronquée aux 4 bits bas.
-        let st = GamepadState { hat: 0xF5, ..Default::default() };
+        let st = GamepadState {
+            hat: 0xF5,
+            ..Default::default()
+        };
         assert_eq!(st.report()[2], 0x05);
     }
 }

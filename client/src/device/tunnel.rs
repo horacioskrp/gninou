@@ -69,7 +69,11 @@ fn run(serial: Option<&str>, args: &[String], what: &str) -> Result<()> {
         .args(args)
         .status()
         .with_context(|| format!("échec de `adb {what}`"))?;
-    anyhow::ensure!(status.success(), "`adb {what}` a échoué (code {:?})", status.code());
+    anyhow::ensure!(
+        status.success(),
+        "`adb {what}` a échoué (code {:?})",
+        status.code()
+    );
     Ok(())
 }
 
@@ -121,10 +125,8 @@ impl Tunnel {
                 let (stream, _) = listener.accept().context("accept() a échoué")?;
                 Ok(stream)
             }
-            Mode::Forward => {
-                TcpStream::connect((Ipv4Addr::LOCALHOST, self.port))
-                    .with_context(|| format!("connexion impossible au port {}", self.port))
-            }
+            Mode::Forward => TcpStream::connect((Ipv4Addr::LOCALHOST, self.port))
+                .with_context(|| format!("connexion impossible au port {}", self.port)),
         }
     }
 

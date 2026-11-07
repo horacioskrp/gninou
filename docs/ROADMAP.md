@@ -14,8 +14,8 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 - [x] Structure modulaire (device, media, control, protocol / net, video, audio, control)
 - [x] Mécanisme d'embarquement du serveur (`include_bytes!` + push adb)
 - [x] Scripts de build (gradle → cargo)
-- [ ] Wrapper Gradle (`gradlew`) généré
-- [ ] CI minimale (build client + serveur)
+- [x] CI minimale (GitHub Actions) — client : `fmt`/`clippy`/`test`/`build` ; serveur : `gradle test`/`jar` (Gradle provisionné + `android.jar` via SDK)
+- [ ] Wrapper Gradle (`gradlew`) committé — nécessite le binaire `gradle-wrapper.jar` ; en attendant, la CI provisionne Gradle elle-même
 
 ## Phase 1 — Connexion de bout en bout 🎯 (prochaine)
 

@@ -129,12 +129,18 @@ mod tests {
 
     #[test]
     fn addr_avec_port() {
-        assert_eq!(parse_addr("192.168.1.42:5555").unwrap(), ("192.168.1.42".into(), 5555));
+        assert_eq!(
+            parse_addr("192.168.1.42:5555").unwrap(),
+            ("192.168.1.42".into(), 5555)
+        );
     }
 
     #[test]
     fn addr_sans_port_defaut() {
-        assert_eq!(parse_addr("10.0.0.5").unwrap(), ("10.0.0.5".into(), DEFAULT_ADB_PORT));
+        assert_eq!(
+            parse_addr("10.0.0.5").unwrap(),
+            ("10.0.0.5".into(), DEFAULT_ADB_PORT)
+        );
     }
 
     #[test]
