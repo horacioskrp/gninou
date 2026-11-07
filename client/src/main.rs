@@ -54,6 +54,20 @@ fn main() -> Result<()> {
         log::info!("rotation demandée : {rotation}°");
     }
 
+    // (#21) Affichage ciblé / affichage virtuel (validation précoce).
+    if let Some(id) = args.display {
+        log::info!("affichage ciblé : #{id}");
+    }
+    if let Some(nd) = args.new_display()? {
+        match nd.size {
+            Some((w, h)) => log::info!(
+                "nouvel affichage virtuel : {w}x{h}{}",
+                nd.dpi.map(|d| format!(" @ {d}dpi")).unwrap_or_default()
+            ),
+            None => log::info!("nouvel affichage virtuel : dimensions par défaut de l'appareil"),
+        }
+    }
+
     // (#14) Audio : validation du codec si l'audio est activé.
     let audio_codec = if args.no_audio {
         log::info!("audio désactivé");

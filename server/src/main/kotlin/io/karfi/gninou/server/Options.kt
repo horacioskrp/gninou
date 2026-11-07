@@ -14,6 +14,12 @@ data class Options(
     val audio: Boolean = true,
     val audioCodec: String = "opus",
     val video: Boolean = true,
+    /** Identifiant de l'affichage à refléter (0 = principal). */
+    val displayId: Int = 0,
+    /** Créer un nouvel affichage virtuel (Android 10+) plutôt que refléter. */
+    val newDisplay: Boolean = false,
+    /** Spécification `LxH`, `LxH/dpi` ou vide (défauts) pour l'affichage virtuel. */
+    val newDisplaySize: String = "",
 ) {
     companion object {
         fun parse(args: Array<String>): Options {
@@ -31,6 +37,8 @@ data class Options(
                     "audio" -> opts.copy(audio = value != "false")
                     "audio_codec" -> opts.copy(audioCodec = value.ifEmpty { "opus" })
                     "video" -> opts.copy(video = value != "false")
+                    "display_id" -> opts.copy(displayId = value.toIntOrNull() ?: 0)
+                    "new_display" -> opts.copy(newDisplay = true, newDisplaySize = value)
                     else -> opts
                 }
             }
