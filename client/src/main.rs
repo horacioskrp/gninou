@@ -41,8 +41,17 @@ fn main() -> Result<()> {
     // (#12) Validation des réglages (débit) avant tout déploiement.
     let bit_rate = args.bit_rate()?;
     match bit_rate {
-        0 => log::info!("réglages vidéo : {}px max, {}fps, débit auto", args.max_size, args.max_fps),
-        br => log::info!("réglages vidéo : {}px max, {}fps, {} bps", args.max_size, args.max_fps, br),
+        0 => log::info!(
+            "réglages vidéo : {}px max, {}fps, débit auto",
+            args.max_size,
+            args.max_fps
+        ),
+        br => log::info!(
+            "réglages vidéo : {}px max, {}fps, {} bps",
+            args.max_size,
+            args.max_fps,
+            br
+        ),
     }
 
     // (#13) Validation du crop et de la rotation.
@@ -187,7 +196,10 @@ fn main() -> Result<()> {
 
             // #3 : le canal est prêt ; la lecture du handshake arrive avec le protocole.
             let _channel = tunnel.accept()?;
-            log::info!("[{}] connexion établie avec le serveur (handshake)", dev.serial);
+            log::info!(
+                "[{}] connexion établie avec le serveur (handshake)",
+                dev.serial
+            );
 
             // (#22/#24) HID/UHID : créer clavier + souris simulés (explicite ou OTG).
             if args.hid_enabled() {

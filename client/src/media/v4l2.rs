@@ -20,9 +20,9 @@ pub const fn is_supported() -> bool {
 /// Logique **pure et testable** (indépendante de l'OS hôte).
 pub fn parse_device(path: &str) -> Result<PathBuf> {
     let path = path.trim();
-    let rest = path
-        .strip_prefix("/dev/video")
-        .ok_or_else(|| anyhow::anyhow!("périphérique V4L2 attendu « /dev/videoN », reçu « {path} »"))?;
+    let rest = path.strip_prefix("/dev/video").ok_or_else(|| {
+        anyhow::anyhow!("périphérique V4L2 attendu « /dev/videoN », reçu « {path} »")
+    })?;
     if rest.is_empty() || !rest.bytes().all(|b| b.is_ascii_digit()) {
         bail!("numéro de périphérique V4L2 invalide dans « {path} »");
     }
@@ -56,7 +56,11 @@ impl V4l2Sink {
             bail!("la sortie webcam V4L2 n'est disponible que sous Linux");
         }
         // TODO (feature v4l2) : ouvrir le périphérique + VIDIOC_S_FMT (format décodé).
-        Ok(Self { device, size: (width, height), stats: Stats::default() })
+        Ok(Self {
+            device,
+            size: (width, height),
+            stats: Stats::default(),
+        })
     }
 
     pub fn device(&self) -> &Path {
@@ -96,8 +100,14 @@ mod tests {
 
     #[test]
     fn device_valide() {
-        assert_eq!(parse_device("/dev/video0").unwrap(), PathBuf::from("/dev/video0"));
-        assert_eq!(parse_device("/dev/video10").unwrap(), PathBuf::from("/dev/video10"));
+        assert_eq!(
+            parse_device("/dev/video0").unwrap(),
+            PathBuf::from("/dev/video0")
+        );
+        assert_eq!(
+            parse_device("/dev/video10").unwrap(),
+            PathBuf::from("/dev/video10")
+        );
     }
 
     #[test]
@@ -123,7 +133,13 @@ mod tests {
         assert_eq!(s.size(), (1280, 720));
         s.push_frame(&[0u8; 1000]).unwrap();
         s.push_frame(&[0u8; 500]).unwrap();
-        assert_eq!(s.stats(), Stats { frames: 2, bytes: 1500 });
+        assert_eq!(
+            s.stats(),
+            Stats {
+                frames: 2,
+                bytes: 1500
+            }
+        );
     }
 
     #[cfg(not(target_os = "linux"))]

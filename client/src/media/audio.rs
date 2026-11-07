@@ -55,7 +55,10 @@ pub struct AudioPipeline {
 
 impl AudioPipeline {
     pub fn new(codec: AudioCodec) -> Self {
-        Self { codec, stats: Stats::default() }
+        Self {
+            codec,
+            stats: Stats::default(),
+        }
     }
 
     pub fn codec(&self) -> AudioCodec {
@@ -99,7 +102,13 @@ mod tests {
         let mut p = AudioPipeline::new(AudioCodec::Opus);
         p.push_packet(&[0u8; 100]).unwrap();
         p.push_packet(&[0u8; 40]).unwrap();
-        assert_eq!(p.stats(), Stats { packets: 2, bytes: 140 });
+        assert_eq!(
+            p.stats(),
+            Stats {
+                packets: 2,
+                bytes: 140
+            }
+        );
         assert_eq!(p.codec(), AudioCodec::Opus);
     }
 }

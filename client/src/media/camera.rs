@@ -59,7 +59,9 @@ impl Facing {
             "back" | "rear" => Ok(Facing::Back),
             "front" => Ok(Facing::Front),
             "external" | "usb" => Ok(Facing::External),
-            other => bail!("orientation caméra inconnue « {other} » (attendues : back, front, external)"),
+            other => {
+                bail!("orientation caméra inconnue « {other} » (attendues : back, front, external)")
+            }
         }
     }
 }
@@ -117,7 +119,12 @@ impl CameraConfig {
         if let Some(0) = fps {
             bail!("le fps caméra doit être strictement positif");
         }
-        Ok(CameraConfig { id, facing, size, fps })
+        Ok(CameraConfig {
+            id,
+            facing,
+            size,
+            fps,
+        })
     }
 
     /// Arguments `clé=valeur` à transmettre au serveur pour cette caméra.

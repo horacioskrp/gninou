@@ -28,7 +28,12 @@ impl Crop {
                 .parse()
                 .map_err(|_| anyhow::anyhow!("valeur de crop invalide : « {p} »"))?;
         }
-        let crop = Crop { width: n[0], height: n[1], x: n[2], y: n[3] };
+        let crop = Crop {
+            width: n[0],
+            height: n[1],
+            x: n[2],
+            y: n[3],
+        };
         if crop.width == 0 || crop.height == 0 {
             bail!("le crop doit avoir une largeur et une hauteur non nulles");
         }
@@ -94,7 +99,10 @@ impl NewDisplay {
         if w == 0 || h == 0 {
             bail!("l'affichage virtuel doit avoir des dimensions non nulles");
         }
-        Ok(NewDisplay { size: Some((w, h)), dpi })
+        Ok(NewDisplay {
+            size: Some((w, h)),
+            dpi,
+        })
     }
 
     /// Représentation transmise au serveur (`LxH`, `LxH/dpi`, `/dpi` ou vide).
@@ -126,7 +134,15 @@ mod tests {
     #[test]
     fn crop_valide() {
         let c = Crop::parse("1080:2400:0:0").unwrap();
-        assert_eq!(c, Crop { width: 1080, height: 2400, x: 0, y: 0 });
+        assert_eq!(
+            c,
+            Crop {
+                width: 1080,
+                height: 2400,
+                x: 0,
+                y: 0
+            }
+        );
     }
 
     #[test]
@@ -165,14 +181,26 @@ mod tests {
     #[test]
     fn new_display_vide_defauts() {
         let d = NewDisplay::parse("").unwrap();
-        assert_eq!(d, NewDisplay { size: None, dpi: None });
+        assert_eq!(
+            d,
+            NewDisplay {
+                size: None,
+                dpi: None
+            }
+        );
         assert_eq!(d.to_arg(), "");
     }
 
     #[test]
     fn new_display_taille_seule() {
         let d = NewDisplay::parse("1920x1080").unwrap();
-        assert_eq!(d, NewDisplay { size: Some((1920, 1080)), dpi: None });
+        assert_eq!(
+            d,
+            NewDisplay {
+                size: Some((1920, 1080)),
+                dpi: None
+            }
+        );
         assert_eq!(d.to_arg(), "1920x1080");
         // Casse du « x » insensible.
         assert_eq!(NewDisplay::parse("800X600").unwrap().size, Some((800, 600)));
@@ -181,7 +209,13 @@ mod tests {
     #[test]
     fn new_display_taille_et_dpi() {
         let d = NewDisplay::parse("1080x2400/420").unwrap();
-        assert_eq!(d, NewDisplay { size: Some((1080, 2400)), dpi: Some(420) });
+        assert_eq!(
+            d,
+            NewDisplay {
+                size: Some((1080, 2400)),
+                dpi: Some(420)
+            }
+        );
         assert_eq!(d.to_arg(), "1080x2400/420");
     }
 

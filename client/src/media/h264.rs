@@ -45,7 +45,11 @@ pub fn split_nal_units(stream: &[u8]) -> Vec<&[u8]> {
     for k in 0..starts.len() {
         let (pos, cl) = starts[k];
         let data_start = pos + cl;
-        let data_end = if k + 1 < starts.len() { starts[k + 1].0 } else { n };
+        let data_end = if k + 1 < starts.len() {
+            starts[k + 1].0
+        } else {
+            n
+        };
         if data_start < data_end {
             units.push(&stream[data_start..data_end]);
         }
