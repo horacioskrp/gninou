@@ -140,6 +140,20 @@ fn main() -> Result<()> {
             let _channel = tunnel.accept()?;
             log::info!("[{}] connexion établie avec le serveur (handshake)", dev.serial);
 
+            // (#20) Écran éteint : message de contrôle prêt à émettre sur le canal.
+            if args.turn_screen_off {
+                let msg = protocol::ControlMessage::SetScreenPowerMode {
+                    mode: protocol::screen_power::OFF,
+                };
+                log::info!(
+                    "[{}] écran éteint demandé ({} octets de contrôle en attente du canal)",
+                    dev.serial,
+                    msg.encode().len()
+                );
+                // TODO (#8-10) : émettre `msg` sur le canal contrôle, puis restaurer
+                //   screen_power::NORMAL en fin de session.
+            }
+
             // TODO (suite du pipeline, par appareil) :
             //   #4-7.  media::video + media::audio (décodage/lecture)
             //   #8-10. control (capture entrées -> protocol -> socket)

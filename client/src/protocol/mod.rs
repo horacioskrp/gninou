@@ -26,6 +26,15 @@ pub mod control_type {
     pub const POINTER: u8 = 1;
     pub const SCROLL: u8 = 2;
     pub const SET_CLIPBOARD: u8 = 3;
+    pub const SET_SCREEN_POWER_MODE: u8 = 4;
+}
+
+/// Modes d'alimentation de l'écran de l'appareil (valeurs `SurfaceControl`).
+pub mod screen_power {
+    /// Écran éteint (le miroir continue de fonctionner).
+    pub const OFF: u8 = 0;
+    /// Écran allumé normalement.
+    pub const NORMAL: u8 = 2;
 }
 
 /// Événement de contrôle envoyé au device.
@@ -39,6 +48,8 @@ pub enum ControlMessage {
     Scroll { x: i32, y: i32, h: i32, v: i32 },
     /// Pousser du texte dans le presse-papiers du device.
     SetClipboard { text: String },
+    /// Régler l'alimentation de l'écran de l'appareil (voir [`screen_power`]).
+    SetScreenPowerMode { mode: u8 },
 }
 
 impl ControlMessage {
@@ -71,6 +82,10 @@ impl ControlMessage {
                 let bytes = text.as_bytes();
                 out.extend_from_slice(&(bytes.len() as u32).to_be_bytes());
                 out.extend_from_slice(bytes);
+            }
+            ControlMessage::SetScreenPowerMode { mode } => {
+                out.push(control_type::SET_SCREEN_POWER_MODE);
+                out.push(*mode);
             }
         }
         out
@@ -170,5 +185,13 @@ mod tests {
             msg.encode(),
             vec![control_type::SET_CLIPBOARD, 0, 0, 0, 2, b'h', b'i']
         );
+    }
+
+    #[test]
+    fn encode_screen_power_off_et_normal() {
+        let off = ControlMessage::SetScreenPowerMode { mode: screen_power::OFF };
+        assert_eq!(off.encode(), vec![control_type::SET_SCREEN_POWER_MODE, 0]);
+        let on = ControlMessage::SetScreenPowerMode { mode: screen_power::NORMAL };
+        assert_eq!(on.encode(), vec![control_type::SET_SCREEN_POWER_MODE, 2]);
     }
 }

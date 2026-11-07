@@ -47,6 +47,10 @@ class Controller(private val injector: EventInjector = EventInjector()) {
                 // TODO: ClipboardManager.setPrimaryClip via réflexion.
                 Log.i("set-clipboard (${msg.text.length} caractères) — à implémenter")
             }
+            is ControlMessage.SetScreenPowerMode -> {
+                Log.i("écran -> mode d'alimentation ${msg.mode}")
+                ScreenPower.setMode(msg.mode)
+            }
         }
     }
 }

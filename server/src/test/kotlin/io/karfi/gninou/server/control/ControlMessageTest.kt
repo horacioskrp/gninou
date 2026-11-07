@@ -38,6 +38,20 @@ class ControlMessageTest {
     }
 
     @Test
+    fun parse_screen_power_mode() {
+        // tag=4, mode=0 (OFF)
+        assertEquals(
+            ControlMessage.SetScreenPowerMode(ControlMessage.POWER_MODE_OFF),
+            ControlMessage.parse(byteArrayOf(4, 0)),
+        )
+        // tag=4, mode=2 (NORMAL)
+        assertEquals(
+            ControlMessage.SetScreenPowerMode(ControlMessage.POWER_MODE_NORMAL),
+            ControlMessage.parse(byteArrayOf(4, 2)),
+        )
+    }
+
+    @Test
     fun type_inconnu_leve_une_erreur() {
         assertFailsWith<IllegalArgumentException> { ControlMessage.parse(byteArrayOf(99, 0)) }
     }
