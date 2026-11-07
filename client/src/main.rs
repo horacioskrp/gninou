@@ -31,7 +31,7 @@ fn main() -> Result<()> {
     log::info!("gninou {} — démarrage", env!("CARGO_PKG_VERSION"));
     log::debug!("arguments : {args:?}");
 
-    let connection = args.connection();
+    let mut connection = args.connection();
     log::info!("mode de connexion : {connection:?}");
 
     // (#11) Validation du codec vidéo demandé avant tout déploiement.
@@ -143,6 +143,14 @@ fn main() -> Result<()> {
     // (#17) Appairage Wi-Fi (Android 11+) si demandé, avant la connexion.
     if let Some((addr, code)) = args.pairing() {
         device::connection::pair(addr, code)?;
+    }
+
+    // (#27) Wi-Fi automatique : bascule l'appareil USB vers le réseau, sans IP.
+    if args.wifi {
+        let usb = device::adb::detect(args.target_serials().first().map(|s| s.as_str()))?;
+        let target = device::connection::switch_to_wifi(&usb.serial, args.wifi_port)?;
+        log::info!("basculé en Wi-Fi : {target} (l'USB peut être débranché)");
+        connection = device::Connection::TcpIp(target);
     }
 
     connection.establish()?;

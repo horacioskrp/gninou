@@ -86,6 +86,14 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 - [~] (#26) Webcam virtuelle (V4L2, Linux) — option `--v4l2-sink /dev/videoN` (validation périphérique + garde plateforme testées) ; écriture V4L2 réelle derrière la feature `v4l2` (Linux)
 - **Test de phase** : flux caméra affiché, périphérique V4L2 utilisable — ⬜ à valider sur matériel/Linux (voir tests/e2e/25 et 26).
 
+## Phase 10 — Confort Wi-Fi (post-roadmap)
+
+> Objectif : se connecter en Wi-Fi sans effort, en s'appuyant sur #16/#17.
+
+- [~] (#27) Wi-Fi automatique (USB → sans-fil) — `--wifi` : lecture d'IP (`parse_wlan_ipv4` testé) + `adb tcpip` + `adb connect` ; bascule réseau réelle à valider sur matériel
+- [ ] (#28) Découverte mDNS (Android 11+) — `--wifi-discover` via `adb mdns services`
+- **Test de phase** : connexion sans-fil sans saisir d'IP, depuis l'USB puis par découverte.
+
 ---
 
 ## Suivi
