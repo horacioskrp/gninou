@@ -8,14 +8,14 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 
 ---
 
-## Phase 0 — Fondations ✅ (en cours de finalisation)
+## Phase 0 — Fondations ✅ (complète)
 
 - [x] Monorepo client (Rust) + serveur (Kotlin)
 - [x] Structure modulaire (device, media, control, protocol / net, video, audio, control)
 - [x] Mécanisme d'embarquement du serveur (`include_bytes!` + push adb)
 - [x] Scripts de build (gradle → cargo)
-- [x] CI minimale (GitHub Actions) — client : `fmt`/`clippy`/`test`/`build` ; serveur : `gradle test`/`jar` (Gradle provisionné + `android.jar` via SDK)
-- [ ] Wrapper Gradle (`gradlew`) committé — nécessite le binaire `gradle-wrapper.jar` ; en attendant, la CI provisionne Gradle elle-même
+- [x] Wrapper Gradle (`gradlew`) committé — `gradlew`/`gradlew.bat` + `gradle-wrapper.jar` (Gradle 8.11.1, dépôt officiel épinglé)
+- [x] CI minimale (GitHub Actions) — client : `fmt`/`clippy`/`test`/`build` ; serveur : `./gradlew test`/`jar` (wrapper + `android.jar` via SDK)
 
 ## Phase 1 — Connexion de bout en bout 🎯 (prochaine)
 
