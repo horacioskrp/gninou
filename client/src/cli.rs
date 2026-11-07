@@ -115,6 +115,10 @@ pub struct Cli {
     #[arg(long, default_value_t = false)]
     pub hid: bool,
 
+    /// Exposer une manette (gamepad) HID à l'appareil et y mapper le contrôleur du PC.
+    #[arg(long, default_value_t = false)]
+    pub gamepad: bool,
+
     /// Verbosité (-v, -vv, -vvv).
     #[arg(short, long, action = clap::ArgAction::Count)]
     pub verbose: u8,
