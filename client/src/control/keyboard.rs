@@ -47,9 +47,7 @@ impl Key {
     /// Convertit la touche en keycode Android, si elle est connue.
     pub fn android_keycode(self) -> Option<u32> {
         let code = match self {
-            Key::Letter(c) if c.is_ascii_lowercase() => {
-                android::A + (c as u32 - 'a' as u32)
-            }
+            Key::Letter(c) if c.is_ascii_lowercase() => android::A + (c as u32 - 'a' as u32),
             Key::Letter(_) => return None,
             Key::Digit(d) if d <= 9 => android::DIGIT0 + d as u32,
             Key::Digit(_) => return None,
@@ -111,11 +109,17 @@ mod tests {
     fn construction_message() {
         assert_eq!(
             key_event(Key::Enter, true),
-            Some(ControlMessage::Key { keycode: 66, pressed: true })
+            Some(ControlMessage::Key {
+                keycode: 66,
+                pressed: true
+            })
         );
         assert_eq!(
             key_event(Key::Letter('b'), false),
-            Some(ControlMessage::Key { keycode: 30, pressed: false })
+            Some(ControlMessage::Key {
+                keycode: 30,
+                pressed: false
+            })
         );
     }
 }

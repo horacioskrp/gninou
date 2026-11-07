@@ -19,7 +19,10 @@ fn main() {
     if std::env::var("GNINOU_BUILD_SERVER").as_deref() == Ok("1") {
         if let Some(built) = build_server() {
             std::fs::copy(&built, &jar).expect("copie du jar serveur");
-            println!("cargo:warning=serveur compilé et embarqué : {}", built.display());
+            println!(
+                "cargo:warning=serveur compilé et embarqué : {}",
+                built.display()
+            );
         } else {
             println!("cargo:warning=échec du build serveur — placeholder conservé");
         }
@@ -44,7 +47,11 @@ fn build_server() -> Option<PathBuf> {
         return None;
     }
 
-    let gradlew = if cfg!(windows) { "gradlew.bat" } else { "./gradlew" };
+    let gradlew = if cfg!(windows) {
+        "gradlew.bat"
+    } else {
+        "./gradlew"
+    };
     let program = if server_dir.join(gradlew).exists() {
         gradlew
     } else {

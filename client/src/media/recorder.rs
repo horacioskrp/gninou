@@ -53,10 +53,9 @@ impl Container {
     pub fn supports_video(self, codec: VideoCodec) -> bool {
         match self {
             // MP4 et MKV acceptent H.264/H.265/AV1.
-            Container::Mp4 | Container::Mkv => matches!(
-                codec,
-                VideoCodec::H264 | VideoCodec::H265 | VideoCodec::Av1
-            ),
+            Container::Mp4 | Container::Mkv => {
+                matches!(codec, VideoCodec::H264 | VideoCodec::H265 | VideoCodec::Av1)
+            }
         }
     }
 
@@ -177,9 +176,18 @@ mod tests {
 
     #[test]
     fn conteneur_par_extension() {
-        assert_eq!(Container::from_path(Path::new("out.mp4")).unwrap(), Container::Mp4);
-        assert_eq!(Container::from_path(Path::new("OUT.MKV")).unwrap(), Container::Mkv);
-        assert_eq!(Container::from_path(Path::new("clip.m4v")).unwrap(), Container::Mp4);
+        assert_eq!(
+            Container::from_path(Path::new("out.mp4")).unwrap(),
+            Container::Mp4
+        );
+        assert_eq!(
+            Container::from_path(Path::new("OUT.MKV")).unwrap(),
+            Container::Mkv
+        );
+        assert_eq!(
+            Container::from_path(Path::new("clip.m4v")).unwrap(),
+            Container::Mp4
+        );
     }
 
     #[test]
@@ -225,7 +233,12 @@ mod tests {
         r.push_audio(&[0u8; 80]).unwrap();
         assert_eq!(
             r.stats(),
-            Stats { video_packets: 2, video_bytes: 800, audio_packets: 1, audio_bytes: 80 }
+            Stats {
+                video_packets: 2,
+                video_bytes: 800,
+                audio_packets: 1,
+                audio_bytes: 80
+            }
         );
     }
 

@@ -79,11 +79,7 @@ fn parse_devices(output: &str) -> Vec<Device> {
         .lines()
         .map(str::trim)
         // Ignore l'en-tête, les lignes vides et les lignes de daemon.
-        .filter(|l| {
-            !l.is_empty()
-                && !l.starts_with("List of devices")
-                && !l.starts_with('*')
-        })
+        .filter(|l| !l.is_empty() && !l.starts_with("List of devices") && !l.starts_with('*'))
         .filter_map(|line| {
             let mut parts = line.split_whitespace();
             let serial = parts.next()?.to_string();
@@ -119,11 +115,16 @@ pub fn select_device(devices: &[Device], serial: Option<&str>) -> Result<Device>
         [] => {
             // Message plus utile si des appareils existent mais non prêts.
             if devices.is_empty() {
-                anyhow::bail!("aucun appareil détecté (branchez l'appareil, activez le débogage USB)");
+                anyhow::bail!(
+                    "aucun appareil détecté (branchez l'appareil, activez le débogage USB)"
+                );
             }
             anyhow::bail!(
                 "aucun appareil prêt ; états détectés : {:?}",
-                devices.iter().map(|d| (&d.serial, &d.state)).collect::<Vec<_>>()
+                devices
+                    .iter()
+                    .map(|d| (&d.serial, &d.state))
+                    .collect::<Vec<_>>()
             );
         }
         [only] => Ok((*only).clone()),
@@ -217,7 +218,10 @@ mod tests {
     }
 
     fn online(serial: &str) -> Device {
-        Device { serial: serial.into(), state: DeviceState::Online }
+        Device {
+            serial: serial.into(),
+            state: DeviceState::Online,
+        }
     }
 
     #[test]
@@ -251,7 +255,10 @@ mod tests {
 
     #[test]
     fn select_serial_non_pret() {
-        let devs = vec![Device { serial: "A".into(), state: DeviceState::Unauthorized }];
+        let devs = vec![Device {
+            serial: "A".into(),
+            state: DeviceState::Unauthorized,
+        }];
         assert!(select_device(&devs, Some("A")).is_err());
     }
 
@@ -265,7 +272,10 @@ mod tests {
     fn multi_all_en_ligne() {
         let devs = vec![
             online("A"),
-            Device { serial: "B".into(), state: DeviceState::Offline },
+            Device {
+                serial: "B".into(),
+                state: DeviceState::Offline,
+            },
             online("C"),
         ];
         let got = select_devices(&devs, &[], true).unwrap();
@@ -274,7 +284,10 @@ mod tests {
 
     #[test]
     fn multi_all_aucun_pret() {
-        let devs = vec![Device { serial: "A".into(), state: DeviceState::Offline }];
+        let devs = vec![Device {
+            serial: "A".into(),
+            state: DeviceState::Offline,
+        }];
         assert!(select_devices(&devs, &[], true).is_err());
     }
 

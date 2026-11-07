@@ -15,10 +15,7 @@ pub fn fit_rect(frame_w: u32, frame_h: u32, win_w: u32, win_h: u32) -> Rect {
     if frame_w == 0 || frame_h == 0 || win_w == 0 || win_h == 0 {
         return (0, 0, win_w, win_h);
     }
-    let scale = f64::min(
-        win_w as f64 / frame_w as f64,
-        win_h as f64 / frame_h as f64,
-    );
+    let scale = f64::min(win_w as f64 / frame_w as f64, win_h as f64 / frame_h as f64);
     let w = (frame_w as f64 * scale).round() as u32;
     let h = (frame_h as f64 * scale).round() as u32;
     let x = ((win_w - w) / 2) as i32;

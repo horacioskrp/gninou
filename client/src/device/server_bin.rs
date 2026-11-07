@@ -77,7 +77,11 @@ pub fn push(serial: Option<&str>) -> Result<()> {
         .arg(DEVICE_PATH)
         .status()
         .context("échec de `adb push`")?;
-    anyhow::ensure!(status.success(), "`adb push` a échoué (code {:?})", status.code());
+    anyhow::ensure!(
+        status.success(),
+        "`adb push` a échoué (code {:?})",
+        status.code()
+    );
     Ok(())
 }
 
