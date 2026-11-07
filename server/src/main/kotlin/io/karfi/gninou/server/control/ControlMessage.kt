@@ -15,12 +15,18 @@ sealed interface ControlMessage {
     data class Pointer(val x: Int, val y: Int, val buttons: Int) : ControlMessage
     data class Scroll(val x: Int, val y: Int, val h: Int, val v: Int) : ControlMessage
     data class SetClipboard(val text: String) : ControlMessage
+    data class SetScreenPowerMode(val mode: Int) : ControlMessage
 
     companion object {
         const val TYPE_KEY = 0
         const val TYPE_POINTER = 1
         const val TYPE_SCROLL = 2
         const val TYPE_SET_CLIPBOARD = 3
+        const val TYPE_SET_SCREEN_POWER_MODE = 4
+
+        /** Modes d'alimentation de l'écran (valeurs SurfaceControl). */
+        const val POWER_MODE_OFF = 0
+        const val POWER_MODE_NORMAL = 2
 
         /** Lit un message depuis un flux (big-endian). `null` en fin de flux. */
         fun readFrom(input: DataInputStream): ControlMessage? {
@@ -40,6 +46,7 @@ sealed interface ControlMessage {
                     input.readFully(bytes)
                     SetClipboard(String(bytes, Charsets.UTF_8))
                 }
+                TYPE_SET_SCREEN_POWER_MODE -> SetScreenPowerMode(input.readUnsignedByte())
                 else -> throw IllegalArgumentException("type de message inconnu : $tag")
             }
         }

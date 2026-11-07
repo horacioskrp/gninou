@@ -98,6 +98,10 @@ pub struct Cli {
     #[arg(long, value_name = "FICHIER")]
     pub record: Option<std::path::PathBuf>,
 
+    /// Éteindre l'écran de l'appareil pendant le miroir (rallumé en fin de session).
+    #[arg(long, default_value_t = false)]
+    pub turn_screen_off: bool,
+
     /// Verbosité (-v, -vv, -vvv).
     #[arg(short, long, action = clap::ArgAction::Count)]
     pub verbose: u8,

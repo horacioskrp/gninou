@@ -33,7 +33,7 @@ puis fusionnée dans `develop` (voir [GITFLOW.md](GITFLOW.md)).
 | 17 | Appairage sans fil (Wi-Fi) | client | Android 11+ | 6 | ✅ | ✅ (validation) |
 | 18 | Multi-appareils | client | — | 6 | ✅ | ✅ (sélection) |
 | 19 | Enregistrement (mp4/mkv) | client | FFmpeg | 7 | 🟨 | ✅ (conteneur/compat) |
-| 20 | Affichage écran éteint | client+serveur | — | 7 | ⬜ | ⬜ |
+| 20 | Affichage écran éteint | client+serveur | — | 7 | 🟨 | ✅ (protocole) |
 | 21 | Écran virtuel / nouvel affichage | client+serveur | Android 10+ | 7 | ⬜ | ⬜ |
 | 22 | Clavier/souris physiques simulés (HID/UHID) | client+serveur | — | 8 | ⬜ | ⬜ |
 | 23 | Manette (gamepad) | client+serveur | — | 8 | ⬜ | ⬜ |
