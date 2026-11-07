@@ -176,6 +176,22 @@ fn main() -> Result<()> {
                 // TODO (#8-10) : émettre kbd/mouse puis les UhidInput au fil des entrées.
             }
 
+            // (#23) Manette : périphérique HID supplémentaire via le même transport UHID.
+            if args.gamepad {
+                use control::gamepad;
+                let pad = protocol::ControlMessage::UhidCreate {
+                    id: gamepad::GAMEPAD_ID,
+                    report_desc: gamepad::GAMEPAD_REPORT_DESC.to_vec(),
+                };
+                log::info!(
+                    "[{}] manette activée (#{}, {} o de descripteur) prête à créer",
+                    dev.serial,
+                    gamepad::GAMEPAD_ID,
+                    pad.encode().len()
+                );
+                // TODO (#8-10) : émettre `pad` puis les UhidInput (GamepadState::report).
+            }
+
             // (#20) Écran éteint : message de contrôle prêt à émettre sur le canal.
             if args.turn_screen_off {
                 let msg = protocol::ControlMessage::SetScreenPowerMode {

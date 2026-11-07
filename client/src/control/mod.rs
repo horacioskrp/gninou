@@ -6,6 +6,7 @@
 //! la **traduction des coordonnées** et le **mapping des boutons** sont purs
 //! et testés ici.
 
+pub mod gamepad;
 pub mod hid;
 pub mod keyboard;
 
