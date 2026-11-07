@@ -64,13 +64,11 @@ jobs:
       - name: Plateforme android-34
         run: sdkmanager "platforms;android-34"
 
-      - name: Gradle (provisionné, sans wrapper)
+      - name: Gradle (via le wrapper du dépôt)
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.11.1'
 
       - name: Tests serveur
-        run: gradle test -PandroidJar="$ANDROID_SDK_ROOT/platforms/android-34/android.jar"
+        run: ./gradlew test -PandroidJar="$ANDROID_SDK_ROOT/platforms/android-34/android.jar"
 
       - name: Build JAR
-        run: gradle jar -PandroidJar="$ANDROID_SDK_ROOT/platforms/android-34/android.jar"
+        run: ./gradlew jar -PandroidJar="$ANDROID_SDK_ROOT/platforms/android-34/android.jar"
