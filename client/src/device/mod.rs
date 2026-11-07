@@ -2,6 +2,7 @@
 
 pub mod adb;
 pub mod connection;
+pub mod mdns;
 pub mod server_bin;
 pub mod tunnel;
 

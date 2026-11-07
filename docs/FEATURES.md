@@ -41,6 +41,7 @@ puis fusionnée dans `develop` (voir [GITFLOW.md](GITFLOW.md)).
 | 25 | Miroir caméra | client+serveur | Android 12+ | 9 | 🟨 | ✅ (options) |
 | 26 | Webcam virtuelle (V4L2) | client | Linux | 9 | 🟨 | ✅ (périphérique) |
 | 27 | Wi-Fi automatique (USB → sans-fil) | client | — | 10 | 🟨 | ✅ (extraction IP) |
+| 28 | Découverte mDNS (débogage sans fil) | client | Android 11+ | 10 | 🟨 | ✅ (parsing mDNS) |
 
 > Ce tableau est mis à jour à chaque fusion d'une `feature/*` : on coche l'état et
 > la colonne « Testé » uniquement quand le test de la fonctionnalité est vert.

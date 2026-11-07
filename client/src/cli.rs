@@ -109,6 +109,11 @@ pub struct Cli {
     #[arg(long, value_name = "PORT", default_value_t = 5555)]
     pub wifi_port: u16,
 
+    /// Découverte mDNS : se connecter au premier appareil en « Débogage sans
+    /// fil » annoncé sur le réseau (Android 11+), sans câble ni IP.
+    #[arg(long, default_value_t = false, conflicts_with_all = ["tcpip", "pair", "wifi", "all"])]
+    pub wifi_discover: bool,
+
     /// Résolution maximale (bord le plus long, en pixels). 0 = illimité.
     #[arg(short = 'm', long, default_value_t = 0)]
     pub max_size: u32,

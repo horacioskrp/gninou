@@ -153,6 +153,13 @@ fn main() -> Result<()> {
         connection = device::Connection::TcpIp(target);
     }
 
+    // (#28) Découverte mDNS : connexion au premier appareil sans-fil annoncé.
+    if args.wifi_discover {
+        let target = device::mdns::discover_first()?;
+        log::info!("connexion à l'appareil découvert : {target}");
+        connection = device::Connection::TcpIp(target);
+    }
+
     connection.establish()?;
 
     // (#1/#16/#17/#18) Résolution des appareils cibles.
