@@ -54,6 +54,18 @@ fn main() -> Result<()> {
         log::info!("rotation demandée : {rotation}°");
     }
 
+    // (#24) Mode OTG : contrôle HID pur. Valide la cohérence des options tôt.
+    args.check_otg()?;
+    if args.otg {
+        let plan = args.otg_plan();
+        log::info!(
+            "mode OTG : contrôle HID seul (clavier={}, souris={}, manette={}) — pas de miroir",
+            plan.keyboard,
+            plan.mouse,
+            plan.gamepad
+        );
+    }
+
     // (#21) Affichage ciblé / affichage virtuel (validation précoce).
     if let Some(id) = args.display {
         log::info!("affichage ciblé : #{id}");
@@ -154,8 +166,8 @@ fn main() -> Result<()> {
             let _channel = tunnel.accept()?;
             log::info!("[{}] connexion établie avec le serveur (handshake)", dev.serial);
 
-            // (#22) HID/UHID : créer clavier + souris simulés sur le canal contrôle.
-            if args.hid {
+            // (#22/#24) HID/UHID : créer clavier + souris simulés (explicite ou OTG).
+            if args.hid_enabled() {
                 use control::hid;
                 let kbd = protocol::ControlMessage::UhidCreate {
                     id: hid::KEYBOARD_ID,
