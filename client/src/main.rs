@@ -174,7 +174,17 @@ fn main() -> Result<()> {
         connection = device::Connection::TcpIp(target);
     }
 
-    connection.establish()?;
+    // (#31) Établissement de la connexion, avec reconnexion auto si demandée.
+    if args.reconnect {
+        let policy = device::reconnect::Backoff::new(500, 10_000, args.reconnect_attempts);
+        log::info!(
+            "reconnexion auto activée (jusqu'à {} tentative(s), backoff ≤ 10 s)",
+            policy.max_attempts
+        );
+        device::reconnect::retry(policy, || connection.establish())?;
+    } else {
+        connection.establish()?;
+    }
 
     // (#1/#16/#17/#18) Résolution des appareils cibles.
     // En réseau (TCP/IP) la cible est l'adresse connectée ; en USB on peut
