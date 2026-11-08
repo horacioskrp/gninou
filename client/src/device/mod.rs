@@ -5,6 +5,7 @@ pub mod assistant;
 pub mod connection;
 pub mod listing;
 pub mod mdns;
+pub mod reconnect;
 pub mod server_bin;
 pub mod tunnel;
 

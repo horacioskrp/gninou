@@ -125,6 +125,15 @@ pub struct Cli {
     #[arg(long, default_value_t = false)]
     pub list: bool,
 
+    /// Reconnexion automatique de la connexion réseau (Wi-Fi/TCP-IP) en cas
+    /// d'échec : relance `adb connect` avec un backoff exponentiel.
+    #[arg(long, default_value_t = false)]
+    pub reconnect: bool,
+
+    /// Nombre total de tentatives de (re)connexion réseau avec --reconnect.
+    #[arg(long, value_name = "N", default_value_t = 10)]
+    pub reconnect_attempts: u32,
+
     /// Résolution maximale (bord le plus long, en pixels). 0 = illimité.
     #[arg(short = 'm', long, default_value_t = 0)]
     pub max_size: u32,
