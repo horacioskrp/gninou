@@ -31,6 +31,12 @@ fn main() -> Result<()> {
     log::info!("gninou {} — démarrage", env!("CARGO_PKG_VERSION"));
     log::debug!("arguments : {args:?}");
 
+    // (#30) Vue unifiée des appareils (USB + mDNS) puis sortie, sans déploiement.
+    if args.list {
+        device::adb::ensure_available()?;
+        return device::listing::run();
+    }
+
     let mut connection = args.connection();
     log::info!("mode de connexion : {connection:?}");
 

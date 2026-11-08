@@ -25,6 +25,16 @@ impl DeviceState {
             other => DeviceState::Other(other.to_string()),
         }
     }
+
+    /// Libellé lisible de l'état (pour la vue `--list`, #30).
+    pub fn label(&self) -> String {
+        match self {
+            DeviceState::Online => "prêt".to_string(),
+            DeviceState::Unauthorized => "non autorisé".to_string(),
+            DeviceState::Offline => "hors ligne".to_string(),
+            DeviceState::Other(s) => s.clone(),
+        }
+    }
 }
 
 /// Un appareil détecté par adb.

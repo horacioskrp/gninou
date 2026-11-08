@@ -43,6 +43,7 @@ puis fusionnée dans `develop` (voir [GITFLOW.md](GITFLOW.md)).
 | 27 | Wi-Fi automatique (USB → sans-fil) | client | — | 10 | 🟨 | ✅ (extraction IP) |
 | 28 | Découverte mDNS (débogage sans fil) | client | Android 11+ | 10 | 🟨 | ✅ (parsing mDNS) |
 | 29 | Assistant d'appairage interactif | client | Android 11+ | 10 | 🟨 | ✅ (code/résolution d'adresse) |
+| 30 | Découverte enrichie (`--list`) | client | — | 10 | 🟨 | ✅ (agrégation/formatage) |
 
 > Ce tableau est mis à jour à chaque fusion d'une `feature/*` : on coche l'état et
 > la colonne « Testé » uniquement quand le test de la fonctionnalité est vert.
