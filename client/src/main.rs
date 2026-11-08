@@ -153,6 +153,14 @@ fn main() -> Result<()> {
         connection = device::Connection::TcpIp(target);
     }
 
+    // (#29) Assistant d'appairage interactif : guide, appaire et renvoie
+    // l'adresse de connexion (découverte mDNS avec repli manuel).
+    if args.pair_assistant {
+        let target = device::assistant::run()?;
+        log::info!("assistant : connexion à {target}");
+        connection = device::Connection::TcpIp(target);
+    }
+
     // (#28) Découverte mDNS : connexion au premier appareil sans-fil annoncé.
     if args.wifi_discover {
         let target = device::mdns::discover_first()?;
