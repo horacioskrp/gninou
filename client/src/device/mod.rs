@@ -3,6 +3,7 @@
 pub mod adb;
 pub mod assistant;
 pub mod connection;
+pub mod listing;
 pub mod mdns;
 pub mod server_bin;
 pub mod tunnel;

@@ -120,6 +120,11 @@ pub struct Cli {
     #[arg(long, default_value_t = false, conflicts_with_all = ["tcpip", "pair", "wifi", "wifi_discover", "all"])]
     pub pair_assistant: bool,
 
+    /// Liste les appareils disponibles (USB + « Débogage sans fil » annoncés en
+    /// mDNS) en une vue unifiée, puis quitte — sans rien déployer.
+    #[arg(long, default_value_t = false)]
+    pub list: bool,
+
     /// Résolution maximale (bord le plus long, en pixels). 0 = illimité.
     #[arg(short = 'm', long, default_value_t = 0)]
     pub max_size: u32,

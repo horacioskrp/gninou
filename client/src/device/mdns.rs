@@ -70,6 +70,12 @@ pub fn pairing(services: &[MdnsService]) -> Vec<&MdnsService> {
         .collect()
 }
 
+/// Exécute `adb mdns services` et renvoie tous les services annoncés analysés
+/// (I/O). Utilisé par la vue unifiée `--list` (#30).
+pub fn discover_services() -> Result<Vec<MdnsService>> {
+    query_services()
+}
+
 /// Exécute `adb mdns services` et renvoie les services analysés (I/O).
 fn query_services() -> Result<Vec<MdnsService>> {
     let out = Command::new("adb")
