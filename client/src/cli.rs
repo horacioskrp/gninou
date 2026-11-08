@@ -114,6 +114,12 @@ pub struct Cli {
     #[arg(long, default_value_t = false, conflicts_with_all = ["tcpip", "pair", "wifi", "all"])]
     pub wifi_discover: bool,
 
+    /// Assistant d'appairage interactif (Android 11+) : guide pas à pas,
+    /// découvre les points d'appairage/connexion en mDNS (repli manuel) et ne
+    /// demande que le code à 6 chiffres affiché par l'appareil.
+    #[arg(long, default_value_t = false, conflicts_with_all = ["tcpip", "pair", "wifi", "wifi_discover", "all"])]
+    pub pair_assistant: bool,
+
     /// Résolution maximale (bord le plus long, en pixels). 0 = illimité.
     #[arg(short = 'm', long, default_value_t = 0)]
     pub max_size: u32,

@@ -62,26 +62,54 @@ pub fn connectable(services: &[MdnsService]) -> Vec<&MdnsService> {
     services.iter().filter(|s| s.is_connectable()).collect()
 }
 
-/// Découvre les appareils sans fil et renvoie l'adresse `ip:port` du premier
-/// service connectable. Erreur si aucun n'est trouvé.
-pub fn discover_first() -> Result<String> {
+/// Ne garde que les services d'**appairage** (`_adb-tls-pairing._tcp`) valides.
+pub fn pairing(services: &[MdnsService]) -> Vec<&MdnsService> {
+    services
+        .iter()
+        .filter(|s| s.service_type == SERVICE_PAIRING && s.addr.contains(':'))
+        .collect()
+}
+
+/// Exécute `adb mdns services` et renvoie les services analysés (I/O).
+fn query_services() -> Result<Vec<MdnsService>> {
     let out = Command::new("adb")
         .args(["mdns", "services"])
         .output()
         .context("échec de `adb mdns services`")?;
     anyhow::ensure!(out.status.success(), "`adb mdns services` a échoué");
-    let services = parse_mdns_services(&String::from_utf8_lossy(&out.stdout));
-    let found = connectable(&services);
-    match found.first() {
-        Some(s) => {
-            log::info!("appareil mDNS trouvé : {} ({})", s.addr, s.name);
-            Ok(s.addr.clone())
-        }
+    Ok(parse_mdns_services(&String::from_utf8_lossy(&out.stdout)))
+}
+
+/// Découvre les appareils sans fil et renvoie l'adresse `ip:port` du premier
+/// service connectable. Erreur si aucun n'est trouvé.
+pub fn discover_first() -> Result<String> {
+    match discover_connect_addr()? {
+        Some(addr) => Ok(addr),
         None => bail!(
             "aucun appareil sans fil découvert (activez « Débogage sans fil » sur l'appareil, \
              même réseau que le PC)"
         ),
     }
+}
+
+/// Adresse `ip:port` du premier service **de connexion** annoncé, s'il existe.
+/// Renvoie `None` (sans erreur) quand aucun n'est trouvé, pour un repli manuel.
+pub fn discover_connect_addr() -> Result<Option<String>> {
+    let services = query_services()?;
+    Ok(connectable(&services).first().map(|s| {
+        log::info!("service mDNS de connexion : {} ({})", s.addr, s.name);
+        s.addr.clone()
+    }))
+}
+
+/// Adresse `ip:port` du premier service d'**appairage** annoncé, s'il existe.
+/// Renvoie `None` (sans erreur) quand aucun n'est trouvé, pour un repli manuel.
+pub fn discover_pairing_addr() -> Result<Option<String>> {
+    let services = query_services()?;
+    Ok(pairing(&services).first().map(|s| {
+        log::info!("service mDNS d'appairage : {} ({})", s.addr, s.name);
+        s.addr.clone()
+    }))
 }
 
 #[cfg(test)]
@@ -109,6 +137,15 @@ mod tests {
         assert_eq!(c.len(), 2);
         assert!(c.iter().all(|x| x.service_type != SERVICE_PAIRING));
         assert_eq!(c[0].addr, "192.168.1.42:37123");
+    }
+
+    #[test]
+    fn filtre_appairage_isole_le_service_pairing() {
+        let s = parse_mdns_services(SAMPLE);
+        let p = pairing(&s);
+        assert_eq!(p.len(), 1);
+        assert_eq!(p[0].service_type, SERVICE_PAIRING);
+        assert_eq!(p[0].addr, "192.168.1.42:37000");
     }
 
     #[test]

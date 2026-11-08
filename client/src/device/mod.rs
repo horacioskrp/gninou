@@ -1,6 +1,7 @@
 //! Couche « appareil » : détection, modes de connexion et tunnel adb.
 
 pub mod adb;
+pub mod assistant;
 pub mod connection;
 pub mod mdns;
 pub mod server_bin;
