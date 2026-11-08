@@ -93,7 +93,8 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 - [~] (#27) Wi-Fi automatique (USB → sans-fil) — `--wifi` : lecture d'IP (`parse_wlan_ipv4` testé) + `adb tcpip` + `adb connect` ; bascule réseau réelle à valider sur matériel
 - [~] (#28) Découverte mDNS (Android 11+) — `--wifi-discover` : `adb mdns services` (parsing + filtrage des services connectables testés) ; découverte réseau réelle à valider sur matériel
 - [~] (#29) Assistant d'appairage interactif (Android 11+) — `--pair-assistant` : guide pas à pas, découvre les points d'appairage/connexion en mDNS (repli manuel), ne demande que le code à 6 chiffres ; logique pure (code + résolution d'adresse) testée, `adb pair`/`adb connect` réels à valider sur matériel
-- **Test de phase** : connexion sans-fil sans saisir d'IP, depuis l'USB puis par découverte ; appairage guidé au code seul.
+- [~] (#30) Découverte enrichie (`--list`) — vue unifiée USB (`adb devices`) + sans-fil annoncés en mDNS, avec état et déduplication, sans déploiement ; agrégation + formatage testés, collecte réelle à valider sur matériel
+- **Test de phase** : connexion sans-fil sans saisir d'IP, depuis l'USB puis par découverte ; appairage guidé au code seul ; `--list` donne une vue d'ensemble des appareils.
 
 ---
 
