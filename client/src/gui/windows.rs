@@ -59,6 +59,11 @@ impl Windows {
         self.open.retain(|w| w.device_id != device_id);
     }
 
+    /// Accès à la fenêtre d'un appareil, si elle est ouverte.
+    pub fn get(&self, device_id: &str) -> Option<&MirrorWindow> {
+        self.open.iter().find(|w| w.device_id == device_id)
+    }
+
     /// Accès mutable à la fenêtre d'un appareil, si elle est ouverte.
     pub fn get_mut(&mut self, device_id: &str) -> Option<&mut MirrorWindow> {
         self.open.iter_mut().find(|w| w.device_id == device_id)
