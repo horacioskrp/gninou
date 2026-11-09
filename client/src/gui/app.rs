@@ -1,14 +1,17 @@
-//! Rendu egui/eframe de l'interface graphique (#32, #33).
+//! Rendu egui/eframe de l'interface graphique (#32–#36).
 //!
 //! Fine couche de **vue** au-dessus des view-models purs ([`super::state`],
-//! [`super::pairing`]) : elle lit l'état, dessine l'écran courant (Appareils ou
-//! Appairage Wi-Fi) et traduit les clics en messages. La collecte
-//! (`adb devices` + mDNS), l'appairage (`adb pair`) et la connexion
-//! (`adb connect`) sont faits de façon synchrone pour ces premiers incréments
-//! (🟨 : passage en tâche de fond à prévoir).
+//! [`super::pairing`], [`super::wifi`], [`super::options`], [`super::mirror`]) :
+//! elle lit l'état, dessine l'écran courant et traduit les clics en messages.
+//! La collecte (`adb devices` + mDNS), l'appairage/connexion et les écritures
+//! PNG (captures/enregistrement) sont faites de façon synchrone pour ces
+//! premiers incréments (🟨 : passage en tâche de fond à prévoir).
+
+use std::path::{Path, PathBuf};
 
 use eframe::egui;
 
+use super::mirror::{FitMode, MirrorMsg, MirrorState};
 use super::options::ROTATIONS;
 use super::pairing::{PairMsg, Phase};
 use super::state::{AppState, Load, Msg, Screen};
@@ -17,16 +20,38 @@ use crate::device::connection::{self, Connection};
 use crate::device::listing::{self, Kind};
 use crate::device::{mdns, reconnect};
 use crate::media::codec::VideoCodec;
+use crate::media::frame::{self, Frame};
+
+/// Résolution de la mire de test affichée dans l'onglet Miroir.
+const MIRROR_W: u32 = 480;
+const MIRROR_H: u32 = 270;
+/// Enregistre une image sur ce nombre de ticks (throttle disque).
+const RECORD_EVERY: u64 = 6;
 
 /// Application GUI gninou.
 pub struct GninouApp {
     state: AppState,
+    /// Compteur d'animation de la mire de test.
+    tick: u64,
+    /// Image courante affichée dans l'onglet Miroir.
+    frame: Frame,
+    /// Texture GPU de l'image courante (recréée à chaque image).
+    texture: Option<egui::TextureHandle>,
+    /// Dossier de l'enregistrement en cours, s'il y en a un.
+    record_dir: Option<PathBuf>,
+    /// Plein écran demandé ?
+    fullscreen: bool,
 }
 
 impl GninouApp {
     fn new() -> Self {
         let mut app = GninouApp {
             state: AppState::new(),
+            tick: 0,
+            frame: frame::test_pattern(MIRROR_W, MIRROR_H, 0),
+            texture: None,
+            record_dir: None,
+            fullscreen: false,
         };
         // Première détection au démarrage pour afficher tout de suite la liste.
         app.refresh();
@@ -488,6 +513,211 @@ impl GninouApp {
             *want_reset = true;
         }
     }
+
+    // --- Onglet Miroir (#36) ---
+
+    /// Dossier des captures (`<cwd>/gninou-captures`), créé au besoin.
+    fn captures_dir() -> anyhow::Result<PathBuf> {
+        let dir = std::env::current_dir()?.join("gninou-captures");
+        std::fs::create_dir_all(&dir)?;
+        Ok(dir)
+    }
+
+    /// Écrit une image RGBA dans un fichier PNG.
+    fn write_png(path: &Path, frame: &Frame) -> anyhow::Result<()> {
+        let file = std::fs::File::create(path)?;
+        let w = std::io::BufWriter::new(file);
+        let mut enc = png::Encoder::new(w, frame.width, frame.height);
+        enc.set_color(png::ColorType::Rgba);
+        enc.set_depth(png::BitDepth::Eight);
+        let mut writer = enc.write_header()?;
+        writer.write_image_data(&frame.rgba)?;
+        Ok(())
+    }
+
+    /// Fait avancer la mire, enregistre si besoin, et met à jour la texture.
+    fn advance_mirror(&mut self, ctx: &egui::Context) {
+        if self.state.mirror.running {
+            self.tick = self.tick.wrapping_add(2);
+        }
+        if self.state.mirror.frame_w != MIRROR_W || self.state.mirror.frame_h != MIRROR_H {
+            self.state.mirror.reduce(MirrorMsg::FrameInfo {
+                width: MIRROR_W,
+                height: MIRROR_H,
+            });
+        }
+        self.frame = frame::test_pattern(MIRROR_W, MIRROR_H, self.tick);
+        if !self.frame.is_valid() {
+            return; // image incohérente : on ne pousse pas de texture
+        }
+
+        if self.state.mirror.recording && self.tick % RECORD_EVERY == 0 {
+            self.record_current_frame();
+        }
+
+        let img = egui::ColorImage::from_rgba_unmultiplied(
+            [MIRROR_W as usize, MIRROR_H as usize],
+            &self.frame.rgba,
+        );
+        match &mut self.texture {
+            Some(t) => t.set(img, egui::TextureOptions::NEAREST),
+            None => {
+                self.texture = Some(ctx.load_texture("miroir", img, egui::TextureOptions::NEAREST))
+            }
+        }
+    }
+
+    /// Enregistre l'image courante dans le dossier d'enregistrement.
+    fn record_current_frame(&mut self) {
+        let dir = match &self.record_dir {
+            Some(d) => d.clone(),
+            None => return,
+        };
+        let seq = self.state.mirror.frames_recorded;
+        let path = dir.join(MirrorState::frame_name(seq));
+        if Self::write_png(&path, &self.frame).is_ok() {
+            self.state.mirror.reduce(MirrorMsg::FrameRecorded);
+        }
+    }
+
+    /// Capture l'image courante dans un PNG.
+    fn take_screenshot(&mut self) {
+        let name = self.state.mirror.next_shot_name();
+        let res = Self::captures_dir().and_then(|d| {
+            let p = d.join(&name);
+            Self::write_png(&p, &self.frame).map(|_| p.display().to_string())
+        });
+        match res {
+            Ok(path) => self.state.mirror.reduce(MirrorMsg::ShotSaved(path)),
+            Err(e) => self
+                .state
+                .mirror
+                .reduce(MirrorMsg::ShotFailed(e.to_string())),
+        }
+    }
+
+    /// Démarre ou arrête l'enregistrement d'images.
+    fn toggle_record(&mut self) {
+        if self.state.mirror.recording {
+            self.state.mirror.reduce(MirrorMsg::RecordStopped);
+            self.record_dir = None;
+            return;
+        }
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let dir = Self::captures_dir().map(|d| d.join(format!("rec-{ts}")));
+        match dir.and_then(|d| std::fs::create_dir_all(&d).map(|_| d).map_err(Into::into)) {
+            Ok(d) => {
+                self.record_dir = Some(d);
+                self.state.mirror.reduce(MirrorMsg::RecordStarted);
+            }
+            Err(e) => self
+                .state
+                .mirror
+                .reduce(MirrorMsg::ShotFailed(e.to_string())),
+        }
+    }
+
+    /// Dessine l'onglet « Miroir ». Renvoie les intentions via sorties.
+    fn ui_mirror(
+        &mut self,
+        ui: &mut egui::Ui,
+        want_shot: &mut bool,
+        want_record: &mut bool,
+        want_fullscreen: &mut bool,
+        msg: &mut Option<MirrorMsg>,
+    ) {
+        let m = &self.state.mirror;
+        ui.horizontal_wrapped(|ui| {
+            // Ajustement / zoom (redimensionnement).
+            if ui
+                .selectable_label(m.fit == FitMode::Fit, "Ajuster")
+                .clicked()
+            {
+                *msg = Some(MirrorMsg::FitSelected(FitMode::Fit));
+            }
+            if ui
+                .selectable_label(m.fit == FitMode::Actual, "100 %")
+                .clicked()
+            {
+                *msg = Some(MirrorMsg::FitSelected(FitMode::Actual));
+            }
+            if ui.button("➖").clicked() {
+                *msg = Some(MirrorMsg::ZoomOut);
+            }
+            ui.label(m.fit_label());
+            if ui.button("➕").clicked() {
+                *msg = Some(MirrorMsg::ZoomIn);
+            }
+
+            ui.separator();
+
+            // Lecture / pause de la source.
+            let run_label = if m.running {
+                "⏸ Pause"
+            } else {
+                "▶ Lecture"
+            };
+            if ui.button(run_label).clicked() {
+                *msg = Some(MirrorMsg::RunToggled(!m.running));
+            }
+
+            ui.separator();
+
+            if ui.button("📸 Capturer").clicked() {
+                *want_shot = true;
+            }
+            let rec_label = if m.recording {
+                "⏹ Arrêter"
+            } else {
+                "⏺ Enregistrer"
+            };
+            if ui.button(rec_label).clicked() {
+                *want_record = true;
+            }
+            if m.recording {
+                ui.colored_label(
+                    egui::Color32::LIGHT_RED,
+                    format!("● {} images", m.frames_recorded),
+                );
+            }
+
+            ui.separator();
+            if ui.button("⛶ Plein écran").clicked() {
+                *want_fullscreen = true;
+            }
+        });
+
+        ui.separator();
+
+        // Zone d'image.
+        let avail = ui.available_size();
+        let (w, h) = self
+            .state
+            .mirror
+            .display_size(avail.x, (avail.y - 4.0).max(1.0));
+        if let Some(tex) = &self.texture {
+            egui::ScrollArea::both().show(ui, |ui| {
+                ui.add(egui::Image::new(egui::load::SizedTexture::new(
+                    tex.id(),
+                    egui::vec2(w.max(1.0), h.max(1.0)),
+                )));
+            });
+        } else {
+            ui.label("Initialisation de l'affichage…");
+        }
+
+        ui.separator();
+        ui.horizontal(|ui| {
+            ui.weak(format!(
+                "Source : mire de test {MIRROR_W}×{MIRROR_H} (le flux réel d'un appareil \
+                 remplacera cette mire une fois le décodage #6 branché)."
+            ));
+        });
+        ui.label(&self.state.mirror.last_action);
+    }
 }
 
 impl eframe::App for GninouApp {
@@ -507,6 +737,18 @@ impl eframe::App for GninouApp {
         let mut want_connect_wifi = false;
         let mut want_reset_wifi = false;
         let mut want_reset_options = false;
+        let mut want_shot = false;
+        let mut want_record = false;
+        let mut want_fullscreen = false;
+        let mut mirror_msg: Option<MirrorMsg> = None;
+
+        // L'onglet Miroir anime la mire et pousse une nouvelle texture par image.
+        if self.state.screen == Screen::Mirror {
+            self.advance_mirror(ctx);
+            if self.state.mirror.running {
+                ctx.request_repaint();
+            }
+        }
 
         egui::TopBottomPanel::top("entete").show(ctx, |ui| {
             ui.horizontal(|ui| {
@@ -535,6 +777,12 @@ impl eframe::App for GninouApp {
                     .clicked()
                 {
                     goto = Some(Screen::Options);
+                }
+                if ui
+                    .selectable_label(self.state.screen == Screen::Mirror, "Miroir")
+                    .clicked()
+                {
+                    goto = Some(Screen::Mirror);
                 }
             });
         });
@@ -565,6 +813,13 @@ impl eframe::App for GninouApp {
                 &mut want_reset_wifi,
             ),
             Screen::Options => self.ui_options(ui, &mut want_reset_options),
+            Screen::Mirror => self.ui_mirror(
+                ui,
+                &mut want_shot,
+                &mut want_record,
+                &mut want_fullscreen,
+                &mut mirror_msg,
+            ),
         });
 
         // Application des intentions (I/O autorisée ici : plus d'emprunt actif).
@@ -610,6 +865,19 @@ impl eframe::App for GninouApp {
         }
         if want_reset_options {
             self.state.options.reduce(super::options::OptMsg::Reset);
+        }
+        if let Some(m) = mirror_msg {
+            self.state.mirror.reduce(m);
+        }
+        if want_shot {
+            self.take_screenshot();
+        }
+        if want_record {
+            self.toggle_record();
+        }
+        if want_fullscreen {
+            self.fullscreen = !self.fullscreen;
+            ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(self.fullscreen));
         }
     }
 }
