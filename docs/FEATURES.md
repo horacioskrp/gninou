@@ -52,6 +52,7 @@ puis fusionnée dans `develop` (voir [GITFLOW.md](GITFLOW.md)).
 | 36 | GUI — onglet Miroir (affichage, zoom/ajustement, capture PNG, enregistrement) | client | feature `gui` | 11 | 🟨 | ✅ (view-model + image) |
 | 37 | GUI — fenêtre de miroir dédiée par appareil + liste enrichie (icônes) | client | feature `gui` | 11 | 🟨 | ✅ (view-model) |
 | 38 | GUI — écran réel de l'appareil dans la fenêtre de miroir (`adb screencap`) | client | feature `gui` | 11 | 🟨 | ✅ (décodage PNG) |
+| 39 | GUI — navigation tactile du miroir (tap/swipe/touches) + dimensions correctes | client | feature `gui` | 11 | 🟨 | ✅ (view-model) |
 
 > Ce tableau est mis à jour à chaque fusion d'une `feature/*` : on coche l'état et
 > la colonne « Testé » uniquement quand le test de la fonctionnalité est vert.
