@@ -27,6 +27,30 @@ impl Kind {
             Kind::Wireless => "Wi-Fi",
         }
     }
+
+    /// Icône (emoji) illustrant le mode de connexion, pour la liste GUI.
+    pub fn icon(&self) -> &'static str {
+        match self {
+            Kind::Usb => "🔌",
+            Kind::Wireless => "📶",
+        }
+    }
+}
+
+/// Icône (emoji) d'un état lisible d'appareil, pour la liste GUI. **Pur.**
+pub fn status_icon(status: &str) -> &'static str {
+    let s = status.to_lowercase();
+    if s.contains("prêt") {
+        "🟢"
+    } else if s.contains("non autoris") {
+        "🟠"
+    } else if s.contains("hors ligne") {
+        "🔴"
+    } else if s.contains("annoncé") {
+        "🔵"
+    } else {
+        "⚪"
+    }
 }
 
 /// Une entrée de la liste unifiée.
@@ -37,6 +61,19 @@ pub struct Entry {
     pub id: String,
     /// État lisible (« prêt », « non autorisé », « annoncé (mDNS) »…).
     pub status: String,
+}
+
+impl Entry {
+    /// Icône d'état (emoji) de l'entrée.
+    pub fn status_icon(&self) -> &'static str {
+        status_icon(&self.status)
+    }
+
+    /// L'appareil est-il prêt à être utilisé (donc à ouvrir en miroir) ?
+    /// Les appareils seulement « annoncés » en mDNS ne le sont pas encore.
+    pub fn is_ready(&self) -> bool {
+        self.status.to_lowercase().contains("prêt")
+    }
 }
 
 /// Un identifiant adb ressemble-t-il à une cible réseau `host:port` ?
@@ -224,6 +261,35 @@ mod tests {
     #[test]
     fn format_vide_est_lisible() {
         assert!(format_entries(&[]).contains("Aucun appareil"));
+    }
+
+    #[test]
+    fn icones_type_et_etat() {
+        assert_eq!(Kind::Usb.icon(), "🔌");
+        assert_eq!(Kind::Wireless.icon(), "📶");
+        assert_eq!(status_icon("prêt"), "🟢");
+        assert_eq!(status_icon("non autorisé"), "🟠");
+        assert_eq!(status_icon("hors ligne"), "🔴");
+        assert_eq!(status_icon("annoncé (connexion, mDNS)"), "🔵");
+        assert_eq!(status_icon("truc inconnu"), "⚪");
+    }
+
+    #[test]
+    fn entry_prete_ou_non() {
+        let pret = Entry {
+            kind: Kind::Usb,
+            id: "ABC".into(),
+            status: "prêt".into(),
+        };
+        let annonce = Entry {
+            kind: Kind::Wireless,
+            id: "10.0.0.9:37123".into(),
+            status: "annoncé (connexion, mDNS)".into(),
+        };
+        assert!(pret.is_ready());
+        assert!(!annonce.is_ready());
+        assert_eq!(pret.status_icon(), "🟢");
+        assert_eq!(annonce.status_icon(), "🔵");
     }
 
     #[test]
