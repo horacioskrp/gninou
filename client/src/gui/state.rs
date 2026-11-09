@@ -10,6 +10,7 @@ use crate::gui::mirror::MirrorState;
 use crate::gui::options::OptionsState;
 use crate::gui::pairing::PairingState;
 use crate::gui::wifi::WifiState;
+use crate::gui::windows::Windows;
 
 /// Écran actuellement affiché.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -76,6 +77,8 @@ pub struct AppState {
     pub options: OptionsState,
     /// État de l'onglet Miroir (#36).
     pub mirror: MirrorState,
+    /// Fenêtres de miroir dédiées ouvertes depuis la liste (#37).
+    pub windows: Windows,
 }
 
 impl Default for AppState {
@@ -90,6 +93,7 @@ impl Default for AppState {
             wifi: WifiState::new(),
             options: OptionsState::new(),
             mirror: MirrorState::new(),
+            windows: Windows::new(),
         }
     }
 }
