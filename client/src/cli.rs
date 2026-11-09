@@ -125,6 +125,10 @@ pub struct Cli {
     #[arg(long, default_value_t = false)]
     pub list: bool,
 
+    /// Lance l'interface graphique (build compilé avec `--features gui`).
+    #[arg(long, default_value_t = false, conflicts_with = "list")]
+    pub gui: bool,
+
     /// Reconnexion automatique de la connexion réseau (Wi-Fi/TCP-IP) en cas
     /// d'échec : relance `adb connect` avec un backoff exponentiel.
     #[arg(long, default_value_t = false)]
