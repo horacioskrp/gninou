@@ -7,6 +7,7 @@
 
 use crate::device::listing::Entry;
 use crate::gui::pairing::PairingState;
+use crate::gui::wifi::WifiState;
 
 /// Écran actuellement affiché.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -15,6 +16,8 @@ pub enum Screen {
     Devices,
     /// Assistant d'appairage Wi-Fi (#33).
     Pairing,
+    /// Connexion Wi-Fi : bascule USB→sans-fil, mDNS, reconnexion auto (#34).
+    Wifi,
 }
 
 /// État du chargement de la liste d'appareils.
@@ -61,6 +64,8 @@ pub struct AppState {
     pub status: String,
     /// État de l'écran d'appairage Wi-Fi (#33).
     pub pairing: PairingState,
+    /// État de l'écran Connexion Wi-Fi (#34).
+    pub wifi: WifiState,
 }
 
 impl Default for AppState {
@@ -72,6 +77,7 @@ impl Default for AppState {
             selected: None,
             status: "Prêt — cliquez sur « Rafraîchir » pour détecter les appareils.".to_string(),
             pairing: PairingState::new(),
+            wifi: WifiState::new(),
         }
     }
 }
@@ -138,6 +144,7 @@ impl AppState {
                 self.status = match screen {
                     Screen::Devices => "Écran : Appareils.".to_string(),
                     Screen::Pairing => "Écran : Appairage Wi-Fi.".to_string(),
+                    Screen::Wifi => "Écran : Connexion Wi-Fi.".to_string(),
                 };
                 self.screen = screen;
             }
@@ -235,6 +242,8 @@ mod tests {
         assert_eq!(s.screen, Screen::Devices);
         s.reduce(Msg::GoTo(Screen::Pairing));
         assert_eq!(s.screen, Screen::Pairing);
+        s.reduce(Msg::GoTo(Screen::Wifi));
+        assert_eq!(s.screen, Screen::Wifi);
         s.reduce(Msg::GoTo(Screen::Devices));
         assert_eq!(s.screen, Screen::Devices);
     }

@@ -11,9 +11,10 @@ use eframe::egui;
 
 use super::pairing::{PairMsg, Phase};
 use super::state::{AppState, Load, Msg, Screen};
+use super::wifi::{self, WifiMsg};
 use crate::device::connection::{self, Connection};
 use crate::device::listing::{self, Kind};
-use crate::device::mdns;
+use crate::device::{mdns, reconnect};
 
 /// Application GUI gninou.
 pub struct GninouApp {
@@ -95,6 +96,72 @@ impl GninouApp {
             .map(|_| addr)
             .map_err(|e| e.to_string());
         self.state.pairing.reduce(PairMsg::ConnectResult(res));
+    }
+
+    /// Pré-remplit la série Wi-Fi avec le premier appareil USB détecté, si le
+    /// champ est vide — petit confort à l'ouverture de l'écran (réutilise #30).
+    fn prefill_wifi_serial(&mut self) {
+        if !self.state.wifi.serial.trim().is_empty() {
+            return;
+        }
+        if let Some(usb) = self
+            .state
+            .devices
+            .iter()
+            .find(|e| e.kind == Kind::Usb)
+            .map(|e| e.id.clone())
+        {
+            self.state.wifi.reduce(WifiMsg::SerialChanged(usb));
+        }
+    }
+
+    /// Bascule l'appareil USB en Wi-Fi (#27), avec reprise si demandée (#31).
+    fn switch_wifi(&mut self) {
+        self.state.wifi.reduce(WifiMsg::SwitchRequested);
+        if self.state.wifi.phase != wifi::Phase::Switching {
+            return; // refusé (série/port) : le hint explique
+        }
+        let serial = self.state.wifi.serial.trim().to_string();
+        // can_switch() (vérifié via la phase) garantit un port valide.
+        let port = self
+            .state
+            .wifi
+            .port_num()
+            .unwrap_or(connection::DEFAULT_ADB_PORT);
+        let backoff = self.state.wifi.backoff();
+        let res = reconnect::retry(backoff, || connection::switch_to_wifi(&serial, port))
+            .map_err(|e| e.to_string());
+        self.state.wifi.reduce(WifiMsg::SwitchResult(res));
+    }
+
+    /// Découvre en mDNS un appareil annonçant sa connexion (#28).
+    fn discover_wifi(&mut self) {
+        self.state.wifi.reduce(WifiMsg::DiscoverRequested);
+        let found = mdns::discover_connect_addr()
+            .ok()
+            .flatten()
+            .and_then(|a| wifi::usable_addr(&a));
+        self.state.wifi.reduce(WifiMsg::Discovered(found));
+    }
+
+    /// Se connecte à l'adresse découverte (#28), avec reprise si demandée (#31).
+    fn connect_discovered(&mut self) {
+        self.state.wifi.reduce(WifiMsg::ConnectDiscoveredRequested);
+        if !self.state.wifi.can_connect_discovered() {
+            return;
+        }
+        let addr = match self.state.wifi.discovered.clone() {
+            Some(a) => a,
+            None => return,
+        };
+        let backoff = self.state.wifi.backoff();
+        let res = reconnect::retry(backoff, || {
+            Connection::TcpIp(addr.clone())
+                .establish()
+                .map(|_| addr.clone())
+        })
+        .map_err(|e| e.to_string());
+        self.state.wifi.reduce(WifiMsg::ConnectResult(res));
     }
 
     /// Dessine l'écran « Appareils ». Renvoie les intentions via les sorties.
@@ -227,6 +294,109 @@ impl GninouApp {
             ui.colored_label(color, &p.hint);
         }
     }
+
+    /// Dessine l'écran « Connexion Wi-Fi ». Renvoie les intentions via sorties.
+    fn ui_wifi(
+        &mut self,
+        ui: &mut egui::Ui,
+        want_switch: &mut bool,
+        want_discover: &mut bool,
+        want_connect: &mut bool,
+        want_reset: &mut bool,
+    ) {
+        ui.heading("Connexion Wi-Fi");
+        ui.label(
+            "Passez d'une liaison USB au sans-fil sans saisir d'IP, ou connectez-vous \
+             à un appareil annoncé sur le réseau local.",
+        );
+        ui.add_space(8.0);
+
+        let w = &mut self.state.wifi;
+
+        // --- Bascule USB → Wi-Fi (#27) ---
+        ui.strong("Depuis un appareil USB");
+        egui::Grid::new("formulaire_wifi")
+            .num_columns(2)
+            .spacing([12.0, 6.0])
+            .show(ui, |ui| {
+                ui.label("Série de l'appareil USB");
+                ui.text_edit_singleline(&mut w.serial);
+                ui.end_row();
+                ui.label("Port TCP/IP");
+                ui.text_edit_singleline(&mut w.port);
+                ui.end_row();
+            });
+        ui.add_space(4.0);
+        if ui
+            .add_enabled(w.can_switch(), egui::Button::new("📶 Basculer en Wi-Fi"))
+            .clicked()
+        {
+            *want_switch = true;
+        }
+
+        ui.add_space(10.0);
+        ui.separator();
+
+        // --- Découverte mDNS (#28) ---
+        ui.strong("Sur le réseau local (mDNS, Android 11+)");
+        ui.horizontal(|ui| {
+            if ui
+                .add_enabled(!w.is_busy(), egui::Button::new("📡 Détecter (mDNS)"))
+                .clicked()
+            {
+                *want_discover = true;
+            }
+            match &w.discovered {
+                Some(addr) => {
+                    ui.label(format!("Trouvé : {addr}"));
+                }
+                None => {
+                    ui.weak("aucun appareil détecté");
+                }
+            }
+            if ui
+                .add_enabled(
+                    w.can_connect_discovered(),
+                    egui::Button::new("🔌 Connecter"),
+                )
+                .clicked()
+            {
+                *want_connect = true;
+            }
+        });
+
+        ui.add_space(10.0);
+        ui.separator();
+
+        // --- Reconnexion automatique (#31) ---
+        ui.strong("Fiabilité");
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut w.reconnect, "Reconnexion automatique");
+            ui.add_enabled_ui(w.reconnect, |ui| {
+                ui.label("tentatives :");
+                ui.add(egui::TextEdit::singleline(&mut w.attempts).desired_width(48.0));
+            });
+        });
+        ui.weak(
+            "Si activée, la bascule et la connexion sont relancées avec un délai \
+             croissant jusqu'à ce nombre de tentatives.",
+        );
+
+        ui.add_space(6.0);
+        if ui.button("↺ Réinitialiser").clicked() {
+            *want_reset = true;
+        }
+
+        if !w.hint.is_empty() {
+            ui.separator();
+            let color = match w.phase {
+                wifi::Phase::Failed(_) => egui::Color32::LIGHT_RED,
+                wifi::Phase::Connected(_) => egui::Color32::LIGHT_GREEN,
+                _ => ui.visuals().text_color(),
+            };
+            ui.colored_label(color, &w.hint);
+        }
+    }
 }
 
 impl eframe::App for GninouApp {
@@ -241,6 +411,10 @@ impl eframe::App for GninouApp {
         let mut want_pair = false;
         let mut want_connect_pair = false;
         let mut want_reset = false;
+        let mut want_switch_wifi = false;
+        let mut want_discover_wifi = false;
+        let mut want_connect_wifi = false;
+        let mut want_reset_wifi = false;
 
         egui::TopBottomPanel::top("entete").show(ctx, |ui| {
             ui.horizontal(|ui| {
@@ -257,6 +431,12 @@ impl eframe::App for GninouApp {
                     .clicked()
                 {
                     goto = Some(Screen::Pairing);
+                }
+                if ui
+                    .selectable_label(self.state.screen == Screen::Wifi, "Connexion Wi-Fi")
+                    .clicked()
+                {
+                    goto = Some(Screen::Wifi);
                 }
             });
         });
@@ -279,11 +459,22 @@ impl eframe::App for GninouApp {
                 &mut want_connect_pair,
                 &mut want_reset,
             ),
+            Screen::Wifi => self.ui_wifi(
+                ui,
+                &mut want_switch_wifi,
+                &mut want_discover_wifi,
+                &mut want_connect_wifi,
+                &mut want_reset_wifi,
+            ),
         });
 
         // Application des intentions (I/O autorisée ici : plus d'emprunt actif).
         if let Some(s) = goto {
+            let entering_wifi = s == Screen::Wifi;
             self.state.reduce(Msg::GoTo(s));
+            if entering_wifi {
+                self.prefill_wifi_serial();
+            }
         }
         if let Some(i) = select {
             self.state.reduce(Msg::Selected(i));
@@ -305,6 +496,18 @@ impl eframe::App for GninouApp {
         }
         if want_reset {
             self.state.pairing.reduce(PairMsg::Reset);
+        }
+        if want_switch_wifi {
+            self.switch_wifi();
+        }
+        if want_discover_wifi {
+            self.discover_wifi();
+        }
+        if want_connect_wifi {
+            self.connect_discovered();
+        }
+        if want_reset_wifi {
+            self.state.wifi.reduce(WifiMsg::Reset);
         }
     }
 }
