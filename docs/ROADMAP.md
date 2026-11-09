@@ -106,7 +106,8 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 > successifs.
 
 - [~] (#32) Fenêtre + écran « Appareils » — `--gui` (feature `gui`) : liste unifiée USB/Wi-Fi (réutilise #30), boutons Rafraîchir/Connecter, barre d'état ; view-model pur (`gui::state`) testé, rendu egui à valider à l'écran
-- **Test de phase** : lancer la GUI, détecter et se connecter à un appareil depuis la fenêtre.
+- [~] (#33) Écran d'appairage Wi-Fi (assistant) — formulaire : adresse auto-découverte en mDNS ou saisie, code à 6 chiffres validé en direct, appairage puis connexion (réutilise #17/#28/#29) ; view-model pur (`gui::pairing`) testé, rendu egui à valider à l'écran
+- **Test de phase** : lancer la GUI, détecter et se connecter à un appareil depuis la fenêtre ; appairer un appareil Android 11+ au code depuis l'écran dédié.
 
 ---
 

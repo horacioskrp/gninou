@@ -46,6 +46,7 @@ puis fusionnée dans `develop` (voir [GITFLOW.md](GITFLOW.md)).
 | 30 | Découverte enrichie (`--list`) | client | — | 10 | 🟨 | ✅ (agrégation/formatage) |
 | 31 | Reconnexion automatique Wi-Fi | client | — | 10 | 🟨 | ✅ (backoff/reprises) |
 | 32 | Interface graphique — fenêtre + écran Appareils | client | feature `gui` | 11 | 🟨 | ✅ (view-model) |
+| 33 | GUI — écran d'appairage Wi-Fi (assistant) | client | feature `gui` | 11 | 🟨 | ✅ (view-model) |
 
 > Ce tableau est mis à jour à chaque fusion d'une `feature/*` : on coche l'état et
 > la colonne « Testé » uniquement quand le test de la fonctionnalité est vert.
