@@ -18,7 +18,8 @@ default = []
 ffmpeg = ["dep:ffmpeg-next"]
 display = ["dep:sdl3"]
 # Interface graphique de bureau (egui/eframe). Le CLI reste disponible sans.
-gui = ["dep:eframe"]
+# `png` sert aux captures d'écran et à l'enregistrement d'images depuis la GUI.
+gui = ["dep:eframe", "dep:png"]
 
 [dependencies]
 # CLI
@@ -38,6 +39,8 @@ eframe = { version = "0.29.1", default-features = false, features = [
     "default_fonts",
     "glow",
 ], optional = true }
+# Encodage PNG pour captures d'écran / enregistrement (GUI), 100 % Rust.
+png = { version = "0.17.14", optional = true }
 
 [profile.release]
 lto = true

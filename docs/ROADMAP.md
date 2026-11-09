@@ -109,7 +109,12 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 - [~] (#33) Écran d'appairage Wi-Fi (assistant) — formulaire : adresse auto-découverte en mDNS ou saisie, code à 6 chiffres validé en direct, appairage puis connexion (réutilise #17/#28/#29) ; view-model pur (`gui::pairing`) testé, rendu egui à valider à l'écran
 - [~] (#34) Écran Connexion Wi-Fi — regroupe la bascule USB→sans-fil (#27), la découverte mDNS (#28) et la reconnexion automatique (#31) ; série USB pré-remplie, port réglable, reprise optionnelle à backoff ; view-model pur (`gui::wifi`) testé, rendu egui à valider à l'écran
 - [~] (#35) Écran Options du miroir — compose et valide en direct résolution/FPS/codec/débit/crop/rotation (#11/#12/#13), avec aperçu de la commande et des arguments serveur ; view-model pur (`gui::options`) testé, rendu egui à valider à l'écran (lancement effectif du miroir depuis la fenêtre à venir)
-- **Test de phase** : lancer la GUI, détecter et se connecter à un appareil depuis la fenêtre ; appairer un appareil Android 11+ au code depuis l'écran dédié ; basculer un appareil USB en Wi-Fi et se reconnecter automatiquement ; composer les réglages vidéo du miroir, tout depuis la fenêtre.
+- [~] (#36) Onglet Miroir — affiche le flux dans la fenêtre (texture egui) avec zoom/ajustement, pause, capture d'écran PNG, enregistrement d'images et plein écran ; une **mire de test** animée (`media::frame`) tient lieu de source tant que le décodage réel (#6) n'alimente pas le rendu ; view-model (`gui::mirror`) + type image testés, rendu/écritures PNG à valider à l'écran
+- **Test de phase** : lancer la GUI, détecter et se connecter à un appareil depuis la fenêtre ; appairer un appareil Android 11+ au code depuis l'écran dédié ; basculer un appareil USB en Wi-Fi et se reconnecter automatiquement ; composer les réglages vidéo du miroir ; afficher un flux dans l'onglet Miroir, le zoomer, le capturer et l'enregistrer — tout depuis la fenêtre.
+
+> Prochaine étape clé hors phase 11 : brancher le **décodage vidéo réel** (#6,
+> feature `ffmpeg`) et pousser les trames décodées dans l'onglet Miroir à la
+> place de la mire de test, pour voir l'écran d'un vrai appareil.
 
 ---
 
