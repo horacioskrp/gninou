@@ -7,6 +7,7 @@
 
 pub mod pairing;
 pub mod state;
+pub mod wifi;
 
 #[cfg(feature = "gui")]
 mod app;
