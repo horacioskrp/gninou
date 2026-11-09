@@ -97,6 +97,17 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 - [~] (#31) Reconnexion automatique Wi-Fi — `--reconnect` (`--reconnect-attempts N`) : relance `adb connect` avec backoff exponentiel plafonné ; politique de backoff + enchaînement des reprises testés, reprise réseau réelle à valider sur matériel
 - **Test de phase** : connexion sans-fil sans saisir d'IP, depuis l'USB puis par découverte ; appairage guidé au code seul ; `--list` donne une vue d'ensemble des appareils ; reprise auto après coupure Wi-Fi.
 
+## Phase 11 — Interface graphique (post-roadmap)
+
+> Objectif : une appli de bureau conviviale (UI/UX), pas seulement la console.
+> GUI 100 % Rust (egui/eframe) **optionnelle** derrière la feature `gui` ; le
+> CLI reste disponible. Logique réutilisée des phases précédentes ; view-model
+> pur testé, rendu validé à l'écran. On surface les fonctionnalités par écrans
+> successifs.
+
+- [~] (#32) Fenêtre + écran « Appareils » — `--gui` (feature `gui`) : liste unifiée USB/Wi-Fi (réutilise #30), boutons Rafraîchir/Connecter, barre d'état ; view-model pur (`gui::state`) testé, rendu egui à valider à l'écran
+- **Test de phase** : lancer la GUI, détecter et se connecter à un appareil depuis la fenêtre.
+
 ---
 
 ## Suivi

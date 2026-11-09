@@ -13,6 +13,10 @@ mod cli;
 mod control;
 mod device;
 mod geometry;
+// Interface graphique : view-model toujours compilé (testé) ; rendu derrière
+// la feature `gui`.
+#[cfg(any(feature = "gui", test))]
+mod gui;
 mod media;
 mod protocol;
 
@@ -30,6 +34,21 @@ fn main() -> Result<()> {
 
     log::info!("gninou {} — démarrage", env!("CARGO_PKG_VERSION"));
     log::debug!("arguments : {args:?}");
+
+    // (#32) Interface graphique : disponible seulement si compilée (feature gui).
+    if args.gui {
+        #[cfg(feature = "gui")]
+        {
+            return gui::launch();
+        }
+        #[cfg(not(feature = "gui"))]
+        {
+            anyhow::bail!(
+                "l'interface graphique n'est pas incluse dans ce build — \
+                 recompilez avec « cargo build --features gui »"
+            );
+        }
+    }
 
     // (#30) Vue unifiée des appareils (USB + mDNS) puis sortie, sans déploiement.
     if args.list {
