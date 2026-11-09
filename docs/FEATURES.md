@@ -48,6 +48,7 @@ puis fusionnée dans `develop` (voir [GITFLOW.md](GITFLOW.md)).
 | 32 | Interface graphique — fenêtre + écran Appareils | client | feature `gui` | 11 | 🟨 | ✅ (view-model) |
 | 33 | GUI — écran d'appairage Wi-Fi (assistant) | client | feature `gui` | 11 | 🟨 | ✅ (view-model) |
 | 34 | GUI — écran Connexion Wi-Fi (USB→sans-fil, mDNS, reconnexion) | client | feature `gui` | 11 | 🟨 | ✅ (view-model) |
+| 35 | GUI — écran Options du miroir (résolution/FPS/codec/débit/crop/rotation) | client | feature `gui` | 11 | 🟨 | ✅ (view-model) |
 
 > Ce tableau est mis à jour à chaque fusion d'une `feature/*` : on coche l'état et
 > la colonne « Testé » uniquement quand le test de la fonctionnalité est vert.

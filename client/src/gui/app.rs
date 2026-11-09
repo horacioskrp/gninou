@@ -9,12 +9,14 @@
 
 use eframe::egui;
 
+use super::options::ROTATIONS;
 use super::pairing::{PairMsg, Phase};
 use super::state::{AppState, Load, Msg, Screen};
 use super::wifi::{self, WifiMsg};
 use crate::device::connection::{self, Connection};
 use crate::device::listing::{self, Kind};
 use crate::device::{mdns, reconnect};
+use crate::media::codec::VideoCodec;
 
 /// Application GUI gninou.
 pub struct GninouApp {
@@ -397,6 +399,95 @@ impl GninouApp {
             ui.colored_label(color, &w.hint);
         }
     }
+
+    /// Dessine l'écran « Options du miroir ». Renvoie les intentions via sorties.
+    fn ui_options(&mut self, ui: &mut egui::Ui, want_reset: &mut bool) {
+        ui.heading("Options du miroir");
+        ui.label(
+            "Réglages vidéo appliqués au prochain miroir. Les champs sont validés \
+             en direct ; l'aperçu montre la commande équivalente.",
+        );
+        ui.add_space(8.0);
+
+        // Marque de validité à poser après chaque champ.
+        fn mark(ui: &mut egui::Ui, ok: bool) {
+            if ok {
+                ui.colored_label(egui::Color32::LIGHT_GREEN, "✓");
+            } else {
+                ui.colored_label(egui::Color32::LIGHT_RED, "✗");
+            }
+        }
+
+        let o = &mut self.state.options;
+        egui::Grid::new("formulaire_options")
+            .num_columns(3)
+            .spacing([12.0, 8.0])
+            .show(ui, |ui| {
+                ui.label("Résolution max (px, 0 = illimité)");
+                ui.add(egui::TextEdit::singleline(&mut o.max_size).desired_width(90.0));
+                mark(ui, o.max_size_valid());
+                ui.end_row();
+
+                ui.label("FPS max");
+                ui.add(egui::TextEdit::singleline(&mut o.max_fps).desired_width(90.0));
+                mark(ui, o.max_fps_valid());
+                ui.end_row();
+
+                ui.label("Codec vidéo");
+                egui::ComboBox::from_id_salt("codec_combo")
+                    .selected_text(o.codec.as_str())
+                    .show_ui(ui, |ui| {
+                        for c in VideoCodec::ALL {
+                            ui.selectable_value(&mut o.codec, c, c.as_str());
+                        }
+                    });
+                ui.label("");
+                ui.end_row();
+
+                ui.label("Débit (ex. 8M, 1500K ; vide = auto)");
+                ui.add(egui::TextEdit::singleline(&mut o.bit_rate).desired_width(90.0));
+                mark(ui, o.bit_rate_valid());
+                ui.end_row();
+
+                ui.label("Rognage (W:H:X:Y ; vide = aucun)");
+                ui.add(egui::TextEdit::singleline(&mut o.crop).desired_width(140.0));
+                mark(ui, o.crop_valid());
+                ui.end_row();
+
+                ui.label("Rotation");
+                ui.horizontal(|ui| {
+                    for r in ROTATIONS {
+                        ui.selectable_value(&mut o.rotation, r, format!("{r}°"));
+                    }
+                });
+                ui.label("");
+                ui.end_row();
+            });
+
+        ui.add_space(8.0);
+        ui.separator();
+        ui.strong("Commande équivalente");
+        ui.code(o.cli_preview());
+        ui.add_space(4.0);
+        ui.strong("Arguments transmis au serveur");
+        ui.code(o.server_args().join("  "));
+
+        ui.add_space(6.0);
+        if o.is_valid() {
+            ui.colored_label(egui::Color32::LIGHT_GREEN, "Réglages valides.");
+        } else {
+            ui.colored_label(
+                egui::Color32::LIGHT_RED,
+                "Un ou plusieurs champs sont invalides (voir ✗).",
+            );
+        }
+        ui.weak("Le lancement du miroir depuis la fenêtre arrivera dans un prochain incrément.");
+
+        ui.add_space(6.0);
+        if ui.button("↺ Réinitialiser").clicked() {
+            *want_reset = true;
+        }
+    }
 }
 
 impl eframe::App for GninouApp {
@@ -415,6 +506,7 @@ impl eframe::App for GninouApp {
         let mut want_discover_wifi = false;
         let mut want_connect_wifi = false;
         let mut want_reset_wifi = false;
+        let mut want_reset_options = false;
 
         egui::TopBottomPanel::top("entete").show(ctx, |ui| {
             ui.horizontal(|ui| {
@@ -437,6 +529,12 @@ impl eframe::App for GninouApp {
                     .clicked()
                 {
                     goto = Some(Screen::Wifi);
+                }
+                if ui
+                    .selectable_label(self.state.screen == Screen::Options, "Options")
+                    .clicked()
+                {
+                    goto = Some(Screen::Options);
                 }
             });
         });
@@ -466,6 +564,7 @@ impl eframe::App for GninouApp {
                 &mut want_connect_wifi,
                 &mut want_reset_wifi,
             ),
+            Screen::Options => self.ui_options(ui, &mut want_reset_options),
         });
 
         // Application des intentions (I/O autorisée ici : plus d'emprunt actif).
@@ -508,6 +607,9 @@ impl eframe::App for GninouApp {
         }
         if want_reset_wifi {
             self.state.wifi.reduce(WifiMsg::Reset);
+        }
+        if want_reset_options {
+            self.state.options.reduce(super::options::OptMsg::Reset);
         }
     }
 }
