@@ -6,12 +6,15 @@
 //! renvoyer des [`Msg`] en retour.
 
 use crate::device::listing::Entry;
+use crate::gui::pairing::PairingState;
 
 /// Écran actuellement affiché.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Screen {
     /// Liste unifiée des appareils (USB + Wi-Fi).
     Devices,
+    /// Assistant d'appairage Wi-Fi (#33).
+    Pairing,
 }
 
 /// État du chargement de la liste d'appareils.
@@ -42,6 +45,8 @@ pub enum Msg {
     ConnectRequested,
     /// Résultat de la connexion : `Ok(adresse)` ou `Err(message)`.
     ConnectResult(Result<String, String>),
+    /// Navigue vers l'écran demandé.
+    GoTo(Screen),
 }
 
 /// État global du view-model GUI.
@@ -54,6 +59,8 @@ pub struct AppState {
     pub selected: Option<usize>,
     /// Message affiché en bas de la fenêtre.
     pub status: String,
+    /// État de l'écran d'appairage Wi-Fi (#33).
+    pub pairing: PairingState,
 }
 
 impl Default for AppState {
@@ -64,6 +71,7 @@ impl Default for AppState {
             load: Load::Idle,
             selected: None,
             status: "Prêt — cliquez sur « Rafraîchir » pour détecter les appareils.".to_string(),
+            pairing: PairingState::new(),
         }
     }
 }
@@ -125,6 +133,13 @@ impl AppState {
             }
             Msg::ConnectResult(Err(e)) => {
                 self.status = format!("Échec de connexion : {e}");
+            }
+            Msg::GoTo(screen) => {
+                self.status = match screen {
+                    Screen::Devices => "Écran : Appareils.".to_string(),
+                    Screen::Pairing => "Écran : Appairage Wi-Fi.".to_string(),
+                };
+                self.screen = screen;
             }
         }
     }
@@ -212,6 +227,16 @@ mod tests {
         assert!(s.status.contains("Connecté"));
         s.reduce(Msg::ConnectResult(Err("injoignable".into())));
         assert!(s.status.contains("Échec"));
+    }
+
+    #[test]
+    fn navigation_entre_ecrans() {
+        let mut s = AppState::new();
+        assert_eq!(s.screen, Screen::Devices);
+        s.reduce(Msg::GoTo(Screen::Pairing));
+        assert_eq!(s.screen, Screen::Pairing);
+        s.reduce(Msg::GoTo(Screen::Devices));
+        assert_eq!(s.screen, Screen::Devices);
     }
 
     #[test]
