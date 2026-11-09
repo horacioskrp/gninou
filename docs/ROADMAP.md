@@ -111,11 +111,13 @@ Référence des fonctionnalités : [FEATURES.md](FEATURES.md) · Workflow : [GIT
 - [~] (#35) Écran Options du miroir — compose et valide en direct résolution/FPS/codec/débit/crop/rotation (#11/#12/#13), avec aperçu de la commande et des arguments serveur ; view-model pur (`gui::options`) testé, rendu egui à valider à l'écran (lancement effectif du miroir depuis la fenêtre à venir)
 - [~] (#36) Onglet Miroir — affiche le flux dans la fenêtre (texture egui) avec zoom/ajustement, pause, capture d'écran PNG, enregistrement d'images et plein écran ; une **mire de test** animée (`media::frame`) tient lieu de source tant que le décodage réel (#6) n'alimente pas le rendu ; view-model (`gui::mirror`) + type image testés, rendu/écritures PNG à valider à l'écran
 - [~] (#37) Fenêtre de miroir dédiée — depuis la liste des appareils, « 🖥 Miroir » ouvre un appareil **prêt** dans sa propre fenêtre (viewport egui), plusieurs en parallèle, chacune avec zoom/capture/enregistrement et un emplacement « Contrôle » (#8–#10 à venir) ; liste enrichie (icônes type/état, police fixe, compteur) ; view-model (`gui::windows`) + icônes (`device::listing`) testés, rendu à valider à l'écran
+- [~] (#38) Écran réel dans la fenêtre de miroir — chaque fenêtre dédiée (#37) lance un fil de capture qui interroge `adb exec-out screencap -p`, décode le PNG en trame RGBA (`device::screencap`) et l'affiche en continu (quelques images/s) ; on voit **vraiment** l'appareil, et la capture/l'enregistrement portent sur l'image réelle ; voie pragmatique en attendant le miroir H.264 temps réel (#6) ; décodage PNG pur testé, rendu à valider à l'écran
 - **Test de phase** : lancer la GUI, détecter et se connecter à un appareil depuis la fenêtre ; appairer un appareil Android 11+ au code depuis l'écran dédié ; basculer un appareil USB en Wi-Fi et se reconnecter automatiquement ; composer les réglages vidéo du miroir ; afficher un flux dans l'onglet Miroir, le zoomer, le capturer et l'enregistrer ; ouvrir un appareil prêt dans sa propre fenêtre depuis la liste — tout depuis la fenêtre.
 
-> Prochaine étape clé hors phase 11 : brancher le **décodage vidéo réel** (#6,
-> feature `ffmpeg`) et pousser les trames décodées dans l'onglet Miroir à la
-> place de la mire de test, pour voir l'écran d'un vrai appareil.
+> L'écran réel de l'appareil est déjà visible dans la fenêtre de miroir via
+> `adb screencap` (#38), à quelques images/seconde. Prochaine étape clé hors
+> phase 11 : brancher le **décodage vidéo réel** (#6, feature `ffmpeg`) pour un
+> miroir H.264 temps réel fluide à la place de l'échantillonnage screencap.
 
 ---
 
