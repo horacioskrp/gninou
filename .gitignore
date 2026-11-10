@@ -28,3 +28,6 @@ Thumbs.db
 
 # ---- divers ----
 *.log
+
+# Captures/enregistrements produits par l'onglet Miroir de la GUI (#36)
+gninou-captures/

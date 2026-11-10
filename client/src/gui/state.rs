@@ -6,9 +6,11 @@
 //! renvoyer des [`Msg`] en retour.
 
 use crate::device::listing::Entry;
+use crate::gui::mirror::MirrorState;
 use crate::gui::options::OptionsState;
 use crate::gui::pairing::PairingState;
 use crate::gui::wifi::WifiState;
+use crate::gui::windows::Windows;
 
 /// Écran actuellement affiché.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,6 +23,8 @@ pub enum Screen {
     Wifi,
     /// Options du miroir : résolution, FPS, codec, débit, crop, rotation (#35).
     Options,
+    /// Miroir : affichage du flux, zoom, capture, enregistrement (#36).
+    Mirror,
 }
 
 /// État du chargement de la liste d'appareils.
@@ -71,6 +75,10 @@ pub struct AppState {
     pub wifi: WifiState,
     /// État de l'écran Options du miroir (#35).
     pub options: OptionsState,
+    /// État de l'onglet Miroir (#36).
+    pub mirror: MirrorState,
+    /// Fenêtres de miroir dédiées ouvertes depuis la liste (#37).
+    pub windows: Windows,
 }
 
 impl Default for AppState {
@@ -84,6 +92,8 @@ impl Default for AppState {
             pairing: PairingState::new(),
             wifi: WifiState::new(),
             options: OptionsState::new(),
+            mirror: MirrorState::new(),
+            windows: Windows::new(),
         }
     }
 }
@@ -152,6 +162,7 @@ impl AppState {
                     Screen::Pairing => "Écran : Appairage Wi-Fi.".to_string(),
                     Screen::Wifi => "Écran : Connexion Wi-Fi.".to_string(),
                     Screen::Options => "Écran : Options du miroir.".to_string(),
+                    Screen::Mirror => "Écran : Miroir.".to_string(),
                 };
                 self.screen = screen;
             }
@@ -253,6 +264,8 @@ mod tests {
         assert_eq!(s.screen, Screen::Wifi);
         s.reduce(Msg::GoTo(Screen::Options));
         assert_eq!(s.screen, Screen::Options);
+        s.reduce(Msg::GoTo(Screen::Mirror));
+        assert_eq!(s.screen, Screen::Mirror);
         s.reduce(Msg::GoTo(Screen::Devices));
         assert_eq!(s.screen, Screen::Devices);
     }

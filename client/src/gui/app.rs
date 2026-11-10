@@ -1,32 +1,201 @@
-//! Rendu egui/eframe de l'interface graphique (#32, #33).
+//! Rendu egui/eframe de l'interface graphique (#32–#36).
 //!
 //! Fine couche de **vue** au-dessus des view-models purs ([`super::state`],
-//! [`super::pairing`]) : elle lit l'état, dessine l'écran courant (Appareils ou
-//! Appairage Wi-Fi) et traduit les clics en messages. La collecte
-//! (`adb devices` + mDNS), l'appairage (`adb pair`) et la connexion
-//! (`adb connect`) sont faits de façon synchrone pour ces premiers incréments
-//! (🟨 : passage en tâche de fond à prévoir).
+//! [`super::pairing`], [`super::wifi`], [`super::options`], [`super::mirror`]) :
+//! elle lit l'état, dessine l'écran courant et traduit les clics en messages.
+//! La collecte (`adb devices` + mDNS), l'appairage/connexion et les écritures
+//! PNG (captures/enregistrement) sont faites de façon synchrone pour ces
+//! premiers incréments (🟨 : passage en tâche de fond à prévoir).
+
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc;
+use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
+use std::time::Duration;
 
 use eframe::egui;
 
+use super::control::{self, InputAction, NavKey};
+use super::mirror::{FitMode, MirrorMsg, MirrorState};
 use super::options::ROTATIONS;
 use super::pairing::{PairMsg, Phase};
 use super::state::{AppState, Load, Msg, Screen};
 use super::wifi::{self, WifiMsg};
 use crate::device::connection::{self, Connection};
 use crate::device::listing::{self, Kind};
-use crate::device::{mdns, reconnect};
+use crate::device::{input as devinput, mdns, reconnect, screencap};
 use crate::media::codec::VideoCodec;
+use crate::media::frame::{self, Frame};
+
+/// Résolution de la mire de test affichée dans l'onglet Miroir.
+const MIRROR_W: u32 = 480;
+const MIRROR_H: u32 = 270;
+/// Enregistre une image sur ce nombre de ticks (throttle disque).
+const RECORD_EVERY: u64 = 6;
+/// Pause entre deux captures d'écran adb (throttle réseau/CPU).
+const CAPTURE_INTERVAL: Duration = Duration::from_millis(80);
+/// Pause après un échec de capture avant de réessayer.
+const CAPTURE_RETRY: Duration = Duration::from_millis(600);
+
+/// Flux de captures d'écran d'un appareil, alimenté par un thread dédié
+/// (`adb exec-out screencap`). Le thread s'arrête à la destruction (#38).
+struct CaptureFeed {
+    latest: Arc<Mutex<Option<Frame>>>,
+    error: Arc<Mutex<Option<String>>>,
+    stop: Arc<AtomicBool>,
+    handle: Option<JoinHandle<()>>,
+}
+
+impl CaptureFeed {
+    fn start(serial: String) -> Self {
+        let latest = Arc::new(Mutex::new(None));
+        let error = Arc::new(Mutex::new(None));
+        let stop = Arc::new(AtomicBool::new(false));
+        let (l, e, s) = (latest.clone(), error.clone(), stop.clone());
+        let handle = std::thread::spawn(move || {
+            while !s.load(Ordering::Relaxed) {
+                match screencap::capture(&serial) {
+                    Ok(frame) => {
+                        if let Ok(mut g) = l.lock() {
+                            *g = Some(frame);
+                        }
+                        if let Ok(mut g) = e.lock() {
+                            *g = None;
+                        }
+                        std::thread::sleep(CAPTURE_INTERVAL);
+                    }
+                    Err(err) => {
+                        if let Ok(mut g) = e.lock() {
+                            *g = Some(err.to_string());
+                        }
+                        std::thread::sleep(CAPTURE_RETRY);
+                    }
+                }
+            }
+        });
+        CaptureFeed {
+            latest,
+            error,
+            stop,
+            handle: Some(handle),
+        }
+    }
+
+    /// Récupère et consomme la dernière image disponible, si une est arrivée.
+    fn take(&self) -> Option<Frame> {
+        self.latest.lock().ok().and_then(|mut g| g.take())
+    }
+
+    /// Dernier message d'erreur de capture, s'il y en a un.
+    fn error(&self) -> Option<String> {
+        self.error.lock().ok().and_then(|g| g.clone())
+    }
+}
+
+impl Drop for CaptureFeed {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::Relaxed);
+        if let Some(h) = self.handle.take() {
+            let _ = h.join();
+        }
+    }
+}
+
+/// Fil d'injection d'entrées d'une fenêtre : reçoit des [`InputAction`] et les
+/// exécute via `adb shell input` **sans bloquer l'UI** (#39). Le fil s'arrête
+/// à la destruction (fermeture du canal).
+struct InputSink {
+    tx: Option<mpsc::Sender<InputAction>>,
+    handle: Option<JoinHandle<()>>,
+}
+
+impl InputSink {
+    fn start(serial: String) -> Self {
+        let (tx, rx) = mpsc::channel::<InputAction>();
+        let handle = std::thread::spawn(move || {
+            while let Ok(action) = rx.recv() {
+                let _ = devinput::inject(&serial, &action);
+            }
+        });
+        InputSink {
+            tx: Some(tx),
+            handle: Some(handle),
+        }
+    }
+
+    /// File une action d'entrée (non bloquant).
+    fn send(&self, action: InputAction) {
+        if let Some(tx) = &self.tx {
+            let _ = tx.send(action);
+        }
+    }
+}
+
+impl Drop for InputSink {
+    fn drop(&mut self) {
+        self.tx.take(); // ferme le canal -> le fil sort de recv()
+        if let Some(h) = self.handle.take() {
+            let _ = h.join();
+        }
+    }
+}
+
+/// État d'exécution d'une fenêtre de miroir : flux de capture, dernière image,
+/// texture GPU, dossier d'enregistrement, injection d'entrées et geste en cours.
+struct WindowRuntime {
+    feed: CaptureFeed,
+    input: InputSink,
+    frame: Frame,
+    texture: Option<egui::TextureHandle>,
+    has_frame: bool,
+    record_dir: Option<PathBuf>,
+    /// Début (coord. appareil) d'un glisser en cours, pour former un swipe.
+    press: Option<(i32, i32)>,
+}
+
+impl WindowRuntime {
+    fn start(serial: &str) -> Self {
+        WindowRuntime {
+            feed: CaptureFeed::start(serial.to_string()),
+            input: InputSink::start(serial.to_string()),
+            frame: Frame::black(1, 1),
+            texture: None,
+            has_frame: false,
+            record_dir: None,
+            press: None,
+        }
+    }
+}
 
 /// Application GUI gninou.
 pub struct GninouApp {
     state: AppState,
+    /// Compteur d'animation de la mire de test.
+    tick: u64,
+    /// Image courante affichée dans l'onglet Miroir.
+    frame: Frame,
+    /// Texture GPU de l'image courante (recréée à chaque image).
+    texture: Option<egui::TextureHandle>,
+    /// Dossier de l'enregistrement en cours de l'onglet Miroir, s'il y en a un.
+    record_dir: Option<PathBuf>,
+    /// Exécution par fenêtre dédiée (capture réelle), clé = id d'appareil.
+    runtimes: HashMap<String, WindowRuntime>,
+    /// Plein écran demandé (onglet) ?
+    fullscreen: bool,
 }
 
 impl GninouApp {
     fn new() -> Self {
         let mut app = GninouApp {
             state: AppState::new(),
+            tick: 0,
+            frame: frame::test_pattern(MIRROR_W, MIRROR_H, 0),
+            texture: None,
+            record_dir: None,
+            runtimes: HashMap::new(),
+            fullscreen: false,
         };
         // Première détection au démarrage pour afficher tout de suite la liste.
         app.refresh();
@@ -173,6 +342,7 @@ impl GninouApp {
         want_refresh: &mut bool,
         want_connect: &mut bool,
         select: &mut Option<usize>,
+        open_mirror: &mut Option<String>,
     ) {
         ui.horizontal(|ui| {
             if ui
@@ -190,6 +360,13 @@ impl GninouApp {
             {
                 *want_connect = true;
             }
+            let n = self.state.devices.len();
+            ui.separator();
+            ui.weak(match n {
+                0 => "aucun appareil".to_string(),
+                1 => "1 appareil".to_string(),
+                _ => format!("{n} appareils"),
+            });
         });
 
         ui.separator();
@@ -208,27 +385,65 @@ impl GninouApp {
         } else {
             egui::Grid::new("appareils")
                 .striped(true)
-                .num_columns(3)
+                .num_columns(4)
+                .spacing([16.0, 8.0])
                 .show(ui, |ui| {
                     ui.strong("Type");
                     ui.strong("Appareil");
                     ui.strong("État");
+                    ui.strong("");
                     ui.end_row();
 
                     for (i, e) in self.state.devices.iter().enumerate() {
                         let selected = self.state.selected == Some(i);
-                        if ui.selectable_label(selected, e.kind.as_str()).clicked() {
+                        if ui
+                            .selectable_label(
+                                selected,
+                                format!("{} {}", e.kind.icon(), e.kind.as_str()),
+                            )
+                            .clicked()
+                        {
                             *select = Some(i);
                         }
-                        if ui.selectable_label(selected, &e.id).clicked() {
+                        if ui
+                            .selectable_label(selected, egui::RichText::new(e.id.as_str()).monospace())
+                            .clicked()
+                        {
                             *select = Some(i);
                         }
-                        if ui.selectable_label(selected, &e.status).clicked() {
+                        if ui
+                            .selectable_label(
+                                selected,
+                                format!("{} {}", e.status_icon(), e.status),
+                            )
+                            .clicked()
+                        {
                             *select = Some(i);
+                        }
+
+                        // Bouton « Miroir » : ouvre l'appareil dans sa fenêtre.
+                        let ready = e.is_ready();
+                        let already = self.state.windows.is_open(&e.id);
+                        let label = if already { "🖥 Ouvert" } else { "🖥 Miroir" };
+                        let btn = ui.add_enabled(ready && !already, egui::Button::new(label));
+                        let btn = if !ready {
+                            btn.on_hover_text(
+                                "Connectez d'abord l'appareil (état « prêt ») pour ouvrir le miroir.",
+                            )
+                        } else {
+                            btn
+                        };
+                        if btn.clicked() {
+                            *open_mirror = Some(e.id.clone());
                         }
                         ui.end_row();
                     }
                 });
+            ui.add_space(6.0);
+            ui.weak(
+                "Astuce : « 🖥 Miroir » sur un appareil prêt l'ouvre dans sa propre fenêtre \
+                 (miroir + contrôle), comme un gestionnaire d'appareils.",
+            );
         }
     }
 
@@ -488,6 +703,487 @@ impl GninouApp {
             *want_reset = true;
         }
     }
+
+    // --- Onglet Miroir (#36) ---
+
+    /// Dossier des captures (`<cwd>/gninou-captures`), créé au besoin.
+    fn captures_dir() -> anyhow::Result<PathBuf> {
+        let dir = std::env::current_dir()?.join("gninou-captures");
+        std::fs::create_dir_all(&dir)?;
+        Ok(dir)
+    }
+
+    /// Écrit une image RGBA dans un fichier PNG.
+    fn write_png(path: &Path, frame: &Frame) -> anyhow::Result<()> {
+        let file = std::fs::File::create(path)?;
+        let w = std::io::BufWriter::new(file);
+        let mut enc = png::Encoder::new(w, frame.width, frame.height);
+        enc.set_color(png::ColorType::Rgba);
+        enc.set_depth(png::BitDepth::Eight);
+        let mut writer = enc.write_header()?;
+        writer.write_image_data(&frame.rgba)?;
+        Ok(())
+    }
+
+    /// Fait avancer la mire de l'**onglet** Miroir (#36 : aperçu sans appareil)
+    /// et met à jour sa texture. Les fenêtres dédiées (#38) affichent, elles,
+    /// l'écran réel via [`Self::pump_windows`].
+    fn advance_mirror(&mut self, ctx: &egui::Context) {
+        if self.state.mirror.running {
+            self.tick = self.tick.wrapping_add(2);
+        }
+        if self.state.mirror.frame_w != MIRROR_W {
+            self.state.mirror.reduce(MirrorMsg::FrameInfo {
+                width: MIRROR_W,
+                height: MIRROR_H,
+            });
+        }
+        self.frame = frame::test_pattern(MIRROR_W, MIRROR_H, self.tick);
+        if !self.frame.is_valid() {
+            return;
+        }
+        if self.state.mirror.recording && self.tick % RECORD_EVERY == 0 {
+            Self::record_frame_into(&mut self.state.mirror, &self.record_dir, &self.frame);
+        }
+
+        let img = egui::ColorImage::from_rgba_unmultiplied(
+            [MIRROR_W as usize, MIRROR_H as usize],
+            &self.frame.rgba,
+        );
+        match &mut self.texture {
+            Some(t) => t.set(img, egui::TextureOptions::NEAREST),
+            None => {
+                self.texture = Some(ctx.load_texture("miroir", img, egui::TextureOptions::NEAREST))
+            }
+        }
+    }
+
+    /// Draine les captures d'écran reçues des fenêtres dédiées : met à jour la
+    /// texture et l'image courante de chaque fenêtre, et enregistre si demandé.
+    fn pump_windows(&mut self, ctx: &egui::Context) {
+        for id in self.state.windows.ids() {
+            let rt = match self.runtimes.get_mut(&id) {
+                Some(rt) => rt,
+                None => continue,
+            };
+            let frame = match rt.feed.take() {
+                Some(f) => f,
+                None => continue,
+            };
+
+            // Publie les dimensions réelles à l'état d'affichage de la fenêtre.
+            if let Some(win) = self.state.windows.get_mut(&id) {
+                if win.mirror.frame_w != frame.width || win.mirror.frame_h != frame.height {
+                    win.mirror.reduce(MirrorMsg::FrameInfo {
+                        width: frame.width,
+                        height: frame.height,
+                    });
+                }
+                if win.mirror.recording {
+                    Self::record_frame_into(&mut win.mirror, &rt.record_dir, &frame);
+                }
+            }
+
+            let img = egui::ColorImage::from_rgba_unmultiplied(
+                [frame.width as usize, frame.height as usize],
+                &frame.rgba,
+            );
+            match &mut rt.texture {
+                Some(t) => t.set(img, egui::TextureOptions::LINEAR),
+                None => {
+                    rt.texture = Some(ctx.load_texture(
+                        format!("mir-{id}"),
+                        img,
+                        egui::TextureOptions::LINEAR,
+                    ))
+                }
+            }
+            rt.frame = frame;
+            rt.has_frame = true;
+        }
+    }
+
+    /// Écrit l'image courante dans le dossier d'enregistrement d'un état miroir.
+    fn record_frame_into(mirror: &mut MirrorState, dir: &Option<PathBuf>, frame: &Frame) {
+        let dir = match dir {
+            Some(d) => d,
+            None => return,
+        };
+        let path = dir.join(MirrorState::frame_name(mirror.frames_recorded));
+        if Self::write_png(&path, frame).is_ok() {
+            mirror.reduce(MirrorMsg::FrameRecorded);
+        }
+    }
+
+    /// Capture l'image courante dans un PNG, nommée via l'état donné.
+    fn save_screenshot(mirror: &mut MirrorState, frame: &Frame) {
+        let name = mirror.next_shot_name();
+        let res = Self::captures_dir().and_then(|d| {
+            let p = d.join(&name);
+            Self::write_png(&p, frame).map(|_| p.display().to_string())
+        });
+        match res {
+            Ok(path) => mirror.reduce(MirrorMsg::ShotSaved(path)),
+            Err(e) => mirror.reduce(MirrorMsg::ShotFailed(e.to_string())),
+        }
+    }
+
+    /// Démarre/arrête l'enregistrement d'images pour un état miroir donné.
+    fn toggle_recording(mirror: &mut MirrorState, dir: &mut Option<PathBuf>) {
+        if mirror.recording {
+            mirror.reduce(MirrorMsg::RecordStopped);
+            *dir = None;
+            return;
+        }
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let created = Self::captures_dir()
+            .map(|d| d.join(format!("rec-{ts}")))
+            .and_then(|d| std::fs::create_dir_all(&d).map(|_| d).map_err(Into::into));
+        match created {
+            Ok(d) => {
+                *dir = Some(d);
+                mirror.reduce(MirrorMsg::RecordStarted);
+            }
+            Err(e) => mirror.reduce(MirrorMsg::ShotFailed(e.to_string())),
+        }
+    }
+
+    /// Barre d'outils du miroir (ajustement/zoom, pause, capture, enregistrement,
+    /// plein écran). Partagée par l'onglet (#36) et les fenêtres (#37). Renvoie
+    /// les intentions via les sorties.
+    fn mirror_toolbar(
+        ui: &mut egui::Ui,
+        mirror: &MirrorState,
+        want_shot: &mut bool,
+        want_record: &mut bool,
+        want_fullscreen: &mut bool,
+        msg: &mut Option<MirrorMsg>,
+    ) {
+        ui.horizontal_wrapped(|ui| {
+            if ui
+                .selectable_label(mirror.fit == FitMode::Fit, "Ajuster")
+                .clicked()
+            {
+                *msg = Some(MirrorMsg::FitSelected(FitMode::Fit));
+            }
+            if ui
+                .selectable_label(mirror.fit == FitMode::Actual, "100 %")
+                .clicked()
+            {
+                *msg = Some(MirrorMsg::FitSelected(FitMode::Actual));
+            }
+            if ui.button("➖").clicked() {
+                *msg = Some(MirrorMsg::ZoomOut);
+            }
+            ui.label(mirror.fit_label());
+            if ui.button("➕").clicked() {
+                *msg = Some(MirrorMsg::ZoomIn);
+            }
+
+            ui.separator();
+
+            let run_label = if mirror.running {
+                "⏸ Pause"
+            } else {
+                "▶ Lecture"
+            };
+            if ui.button(run_label).clicked() {
+                *msg = Some(MirrorMsg::RunToggled(!mirror.running));
+            }
+
+            ui.separator();
+
+            if ui.button("📸 Capturer").clicked() {
+                *want_shot = true;
+            }
+            let rec_label = if mirror.recording {
+                "⏹ Arrêter"
+            } else {
+                "⏺ Enregistrer"
+            };
+            if ui.button(rec_label).clicked() {
+                *want_record = true;
+            }
+            if mirror.recording {
+                ui.colored_label(
+                    egui::Color32::LIGHT_RED,
+                    format!("● {} images", mirror.frames_recorded),
+                );
+            }
+
+            ui.separator();
+            if ui.button("⛶ Plein écran").clicked() {
+                *want_fullscreen = true;
+            }
+        });
+    }
+
+    /// Barre d'outils + image du miroir (onglet #36, mire de test non
+    /// interactive). Renvoie les intentions via les sorties.
+    fn draw_mirror_canvas(
+        ui: &mut egui::Ui,
+        mirror: &mut MirrorState,
+        texture: Option<&egui::TextureHandle>,
+        want_shot: &mut bool,
+        want_record: &mut bool,
+        want_fullscreen: &mut bool,
+        msg: &mut Option<MirrorMsg>,
+    ) {
+        Self::mirror_toolbar(ui, mirror, want_shot, want_record, want_fullscreen, msg);
+        ui.separator();
+
+        let avail = ui.available_size();
+        let (w, h) = mirror.display_size(avail.x, (avail.y - 4.0).max(1.0));
+        if let Some(tex) = texture {
+            egui::ScrollArea::both().show(ui, |ui| {
+                ui.add(egui::Image::new(egui::load::SizedTexture::new(
+                    tex.id(),
+                    egui::vec2(w.max(1.0), h.max(1.0)),
+                )));
+            });
+        } else {
+            ui.label("Initialisation de l'affichage…");
+        }
+    }
+
+    /// Image **interactive** d'une fenêtre d'appareil (#39) : l'image remplit la
+    /// zone disponible en gardant les proportions ; un clic devient un *tap* et
+    /// un glisser un *swipe*, mappés en coordonnées appareil et collectés dans
+    /// `actions`. `press` conserve le début d'un geste entre deux images.
+    fn draw_mirror_image(
+        ui: &mut egui::Ui,
+        mirror: &MirrorState,
+        texture: &egui::TextureHandle,
+        press: &mut Option<(i32, i32)>,
+        actions: &mut Vec<InputAction>,
+    ) {
+        let avail = ui.available_size();
+        let (w, h) = mirror.display_size(avail.x.max(1.0), avail.y.max(1.0));
+        // Centre l'image dans la zone disponible.
+        ui.centered_and_justified(|ui| {
+            let img = egui::Image::new(egui::load::SizedTexture::new(
+                texture.id(),
+                egui::vec2(w.max(1.0), h.max(1.0)),
+            ))
+            .sense(egui::Sense::click_and_drag());
+            let resp = ui.add(img);
+
+            let (dev_w, dev_h) = (mirror.frame_w, mirror.frame_h);
+            if let Some(ptr) = resp.interact_pointer_pos() {
+                let rel = ptr - resp.rect.min;
+                let size = resp.rect.size();
+                if let Some(dev) =
+                    control::map_to_device(rel.x, rel.y, size.x, size.y, dev_w, dev_h)
+                {
+                    if resp.drag_started() {
+                        *press = Some(dev);
+                    }
+                    if resp.clicked() {
+                        actions.push(InputAction::Tap { x: dev.0, y: dev.1 });
+                    }
+                    if resp.drag_stopped() {
+                        let start = press.take().unwrap_or(dev);
+                        actions.push(control::gesture_action(start, dev));
+                    }
+                }
+            }
+        });
+    }
+
+    /// Boutons de navigation (Retour / Accueil / Récents) d'une fenêtre (#39).
+    fn nav_controls(ui: &mut egui::Ui, actions: &mut Vec<InputAction>) {
+        ui.horizontal(|ui| {
+            ui.strong("Navigation");
+            ui.separator();
+            for key in [NavKey::Back, NavKey::Home, NavKey::Recents] {
+                if ui.button(key.label()).clicked() {
+                    actions.push(InputAction::Key(key));
+                }
+            }
+        });
+        ui.weak("Astuce : cliquez dans l'image pour toucher, glissez pour faire défiler.");
+    }
+
+    /// Dessine l'onglet « Miroir » (#36). Renvoie les intentions via sorties.
+    fn ui_mirror(
+        &mut self,
+        ui: &mut egui::Ui,
+        want_shot: &mut bool,
+        want_record: &mut bool,
+        want_fullscreen: &mut bool,
+        msg: &mut Option<MirrorMsg>,
+    ) {
+        Self::draw_mirror_canvas(
+            ui,
+            &mut self.state.mirror,
+            self.texture.as_ref(),
+            want_shot,
+            want_record,
+            want_fullscreen,
+            msg,
+        );
+        ui.separator();
+        ui.weak(format!(
+            "Source : mire de test {MIRROR_W}×{MIRROR_H}. Ouvrez un appareil « prêt » \
+             depuis l'onglet Appareils pour l'afficher dans sa propre fenêtre."
+        ));
+        ui.label(&self.state.mirror.last_action);
+    }
+
+    /// Ouvre/rafraîchit une fenêtre dédiée par appareil (viewports immédiats),
+    /// affichant l'écran **réel** capturé par `adb screencap` (#38).
+    fn render_mirror_windows(&mut self, ctx: &egui::Context) {
+        let ids = self.state.windows.ids();
+        if ids.is_empty() {
+            return;
+        }
+        let mut to_close: Vec<String> = Vec::new();
+
+        for id in ids {
+            // Texture et état de capture de CETTE fenêtre (clonés pour ne pas
+            // emprunter self.runtimes dans la closure du viewport).
+            let (tex, has_frame, cap_err) = match self.runtimes.get(&id) {
+                Some(rt) => (rt.texture.clone(), rt.has_frame, rt.feed.error()),
+                None => (None, false, None),
+            };
+
+            let vid = egui::ViewportId::from_hash_of(("gninou-mirror", id.as_str()));
+            let builder = egui::ViewportBuilder::default()
+                .with_title(format!("gninou — miroir : {id}"))
+                .with_inner_size([420.0, 780.0]);
+
+            let mut shot = false;
+            let mut record = false;
+            let mut fullscreen = false;
+            let mut msg: Option<MirrorMsg> = None;
+            let mut close = false;
+            // Geste en cours (début) repris de l'exécution de la fenêtre, et
+            // actions d'entrée collectées pendant le rendu puis injectées après.
+            let mut press = self.runtimes.get(&id).and_then(|rt| rt.press);
+            let mut actions: Vec<InputAction> = Vec::new();
+
+            ctx.show_viewport_immediate(vid, builder, |ctx, _class| {
+                // Barre d'outils en haut, navigation + état en bas, image au
+                // centre : ainsi l'image occupe exactement la place restante et
+                // ses proportions coïncident avec l'écran de l'appareil.
+                egui::TopBottomPanel::top(egui::Id::new(("mir-top", id.as_str()))).show(
+                    ctx,
+                    |ui| {
+                        if let Some(win) = self.state.windows.get_mut(&id) {
+                            ui.horizontal(|ui| {
+                                ui.heading("Miroir");
+                                ui.separator();
+                                ui.monospace(win.device_id.as_str());
+                                if win.mirror.frame_w > 0 {
+                                    ui.separator();
+                                    ui.weak(format!(
+                                        "{}×{}",
+                                        win.mirror.frame_w, win.mirror.frame_h
+                                    ));
+                                }
+                            });
+                            if has_frame {
+                                Self::mirror_toolbar(
+                                    ui,
+                                    &win.mirror,
+                                    &mut shot,
+                                    &mut record,
+                                    &mut fullscreen,
+                                    &mut msg,
+                                );
+                            }
+                        }
+                    },
+                );
+                egui::TopBottomPanel::bottom(egui::Id::new(("mir-bot", id.as_str()))).show(
+                    ctx,
+                    |ui| {
+                        if has_frame {
+                            Self::nav_controls(ui, &mut actions);
+                        }
+                        if let Some(win) = self.state.windows.get(&id) {
+                            ui.label(&win.mirror.last_action);
+                        }
+                    },
+                );
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    if let Some(win) = self.state.windows.get_mut(&id) {
+                        match (has_frame, tex.as_ref()) {
+                            (true, Some(tex)) => {
+                                Self::draw_mirror_image(
+                                    ui,
+                                    &win.mirror,
+                                    tex,
+                                    &mut press,
+                                    &mut actions,
+                                );
+                            }
+                            _ => {
+                                ui.centered_and_justified(|ui| {
+                                    ui.vertical_centered(|ui| {
+                                        ui.spinner();
+                                        match &cap_err {
+                                            Some(e) => ui.colored_label(
+                                                egui::Color32::LIGHT_RED,
+                                                format!("Capture impossible : {e}"),
+                                            ),
+                                            None => ui.label("Capture de l'écran en cours…"),
+                                        };
+                                    });
+                                });
+                            }
+                        }
+                    }
+                });
+                if ctx.input(|i| i.viewport().close_requested()) {
+                    close = true;
+                }
+                if fullscreen {
+                    let now = ctx.input(|i| i.viewport().fullscreen.unwrap_or(false));
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(!now));
+                }
+            });
+
+            // Application des intentions de cette fenêtre.
+            if let Some(m) = msg {
+                if let Some(win) = self.state.windows.get_mut(&id) {
+                    win.mirror.reduce(m);
+                }
+            }
+            if shot {
+                if let (Some(win), Some(rt)) =
+                    (self.state.windows.get_mut(&id), self.runtimes.get(&id))
+                {
+                    Self::save_screenshot(&mut win.mirror, &rt.frame);
+                }
+            }
+            if record {
+                if let (Some(win), Some(rt)) =
+                    (self.state.windows.get_mut(&id), self.runtimes.get_mut(&id))
+                {
+                    Self::toggle_recording(&mut win.mirror, &mut rt.record_dir);
+                }
+            }
+            // Mémorise le geste en cours et injecte les entrées (non bloquant).
+            if let Some(rt) = self.runtimes.get_mut(&id) {
+                rt.press = press;
+                for action in actions {
+                    rt.input.send(action);
+                }
+            }
+            if close {
+                to_close.push(id);
+            }
+        }
+
+        for id in to_close {
+            self.state.windows.close(&id);
+            self.runtimes.remove(&id); // arrête le thread de capture (Drop)
+        }
+    }
 }
 
 impl eframe::App for GninouApp {
@@ -507,6 +1203,25 @@ impl eframe::App for GninouApp {
         let mut want_connect_wifi = false;
         let mut want_reset_wifi = false;
         let mut want_reset_options = false;
+        let mut want_shot = false;
+        let mut want_record = false;
+        let mut want_fullscreen = false;
+        let mut mirror_msg: Option<MirrorMsg> = None;
+        let mut open_mirror: Option<String> = None;
+
+        // L'onglet Miroir anime la mire d'aperçu (#36).
+        if self.state.screen == Screen::Mirror {
+            self.advance_mirror(ctx);
+            if self.state.mirror.running {
+                ctx.request_repaint();
+            }
+        }
+        // Les fenêtres dédiées affichent l'écran réel (#38) : on draine les
+        // captures reçues des threads et on redemande un rendu (asynchrone).
+        if self.state.windows.count() > 0 {
+            self.pump_windows(ctx);
+            ctx.request_repaint_after(Duration::from_millis(50));
+        }
 
         egui::TopBottomPanel::top("entete").show(ctx, |ui| {
             ui.horizontal(|ui| {
@@ -536,6 +1251,12 @@ impl eframe::App for GninouApp {
                 {
                     goto = Some(Screen::Options);
                 }
+                if ui
+                    .selectable_label(self.state.screen == Screen::Mirror, "Miroir")
+                    .clicked()
+                {
+                    goto = Some(Screen::Mirror);
+                }
             });
         });
 
@@ -547,9 +1268,13 @@ impl eframe::App for GninouApp {
 
         let screen = self.state.screen.clone();
         egui::CentralPanel::default().show(ctx, |ui| match screen {
-            Screen::Devices => {
-                self.ui_devices(ui, &mut want_refresh, &mut want_connect, &mut select)
-            }
+            Screen::Devices => self.ui_devices(
+                ui,
+                &mut want_refresh,
+                &mut want_connect,
+                &mut select,
+                &mut open_mirror,
+            ),
             Screen::Pairing => self.ui_pairing(
                 ui,
                 &mut want_discover,
@@ -565,6 +1290,13 @@ impl eframe::App for GninouApp {
                 &mut want_reset_wifi,
             ),
             Screen::Options => self.ui_options(ui, &mut want_reset_options),
+            Screen::Mirror => self.ui_mirror(
+                ui,
+                &mut want_shot,
+                &mut want_record,
+                &mut want_fullscreen,
+                &mut mirror_msg,
+            ),
         });
 
         // Application des intentions (I/O autorisée ici : plus d'emprunt actif).
@@ -611,6 +1343,28 @@ impl eframe::App for GninouApp {
         if want_reset_options {
             self.state.options.reduce(super::options::OptMsg::Reset);
         }
+        if let Some(m) = mirror_msg {
+            self.state.mirror.reduce(m);
+        }
+        if want_shot {
+            Self::save_screenshot(&mut self.state.mirror, &self.frame);
+        }
+        if want_record {
+            Self::toggle_recording(&mut self.state.mirror, &mut self.record_dir);
+        }
+        if want_fullscreen {
+            self.fullscreen = !self.fullscreen;
+            ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(self.fullscreen));
+        }
+        if let Some(id) = open_mirror {
+            // Ouvre la fenêtre et lance le thread de capture de l'appareil.
+            if self.state.windows.open(&id) {
+                self.runtimes.insert(id.clone(), WindowRuntime::start(&id));
+            }
+        }
+
+        // Fenêtres de miroir dédiées (une par appareil ouvert).
+        self.render_mirror_windows(ctx);
     }
 }
 

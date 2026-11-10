@@ -5,10 +5,13 @@
 //! fenêtre ne sont compilés qu'avec la feature `gui`, pour garder le build par
 //! défaut léger et sans dépendance graphique.
 
+pub mod control;
+pub mod mirror;
 pub mod options;
 pub mod pairing;
 pub mod state;
 pub mod wifi;
+pub mod windows;
 
 #[cfg(feature = "gui")]
 mod app;

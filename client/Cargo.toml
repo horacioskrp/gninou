@@ -28,6 +28,9 @@ log = "0.4.22"
 env_logger = "0.11.5"
 # erreurs
 anyhow = "1.0.95"
+# Décodage/encodage PNG (capture d'écran adb #38, captures/enregistrement GUI),
+# 100 % Rust, léger. Utilisé aussi hors GUI (capture testable).
+png = "0.17.14"
 
 # Décodage vidéo réel (optionnel) : nécessite FFmpeg installé pour compiler.
 ffmpeg-next = { version = "7.1.0", optional = true }
